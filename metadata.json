@@ -1,0 +1,6 @@
+{
+  "name": "Bushido Trading Protocol",
+  "description": "Virtue-aligned decentralized trading protocol and Dojo dashboard integrating Base MCP and Coinbase Developer Platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
