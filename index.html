@@ -31,6 +31,11 @@
                 s.indexOf('popup was blocked') !== -1 ||
                 s.indexOf('popup_blocked') !== -1 ||
                 s.indexOf('getethjsonrpcerror') !== -1 ||
+                s.indexOf('user rejected') !== -1 ||
+                s.indexOf('user rejected the request') !== -1 ||
+                s.indexOf('action_rejected') !== -1 ||
+                s.indexOf('code":4001') !== -1 ||
+                s.indexOf('code: 4001') !== -1 ||
                 s.indexOf('on-chain execution failed') !== -1 ||
                 s.indexOf('execution reverted') !== -1 ||
                 s.indexOf('call_exception') !== -1 ||
@@ -45,6 +50,9 @@
               if (
                 arg.code === 'APKT002' ||
                 arg.code === 3000 ||
+                arg.code === 4001 ||
+                arg.code === '4001' ||
+                arg.code === 'ACTION_REJECTED' ||
                 arg.code === 'CALL_EXCEPTION' ||
                 arg.alertErrorKey === 'ORIGIN_NOT_ALLOWED' ||
                 arg.action === 'estimateGas' ||
@@ -75,6 +83,9 @@
                   ms.indexOf('popup was blocked') !== -1 ||
                   ms.indexOf('popup_blocked') !== -1 ||
                   ms.indexOf('getethjsonrpcerror') !== -1 ||
+                  ms.indexOf('user rejected') !== -1 ||
+                  ms.indexOf('user rejected the request') !== -1 ||
+                  ms.indexOf('action_rejected') !== -1 ||
                   ms.indexOf('on-chain execution failed') !== -1 ||
                   ms.indexOf('execution reverted') !== -1 ||
                   ms.indexOf('call_exception') !== -1 ||
@@ -98,6 +109,9 @@
                   str.indexOf('popup was blocked') !== -1 ||
                   str.indexOf('popup_blocked') !== -1 ||
                   str.indexOf('getethjsonrpcerror') !== -1 ||
+                  str.indexOf('user rejected') !== -1 ||
+                  str.indexOf('action_rejected') !== -1 ||
+                  str.indexOf('4001') !== -1 ||
                   str.indexOf('execution reverted') !== -1 ||
                   str.indexOf('0x1b10b0f9') !== -1 ||
                   str.indexOf('call_exception') !== -1
@@ -152,7 +166,7 @@
           window.addEventListener('error', function(e) {
             var msg = ((e && e.message) || '').toLowerCase();
             var errMsg = ((e && e.error && e.error.message) || '').toLowerCase();
-            var errCode = (e && e.error && e.error.code) || '';
+            var errCode = (e && e.error && (e.error.code || e.error.status)) || '';
             var errStack = ((e && e.error && e.error.stack) || '').toLowerCase();
             if (
               msg.indexOf('relay.walletconnect') !== -1 ||
@@ -164,6 +178,8 @@
               msg.indexOf('popup was blocked') !== -1 ||
               msg.indexOf('popup_blocked') !== -1 ||
               msg.indexOf('getethjsonrpcerror') !== -1 ||
+              msg.indexOf('user rejected') !== -1 ||
+              msg.indexOf('action_rejected') !== -1 ||
               msg.indexOf('execution reverted') !== -1 ||
               msg.indexOf('call_exception') !== -1 ||
               msg.indexOf('0x1b10b0f9') !== -1 ||
@@ -176,12 +192,18 @@
               errMsg.indexOf('popup was blocked') !== -1 ||
               errMsg.indexOf('popup_blocked') !== -1 ||
               errMsg.indexOf('getethjsonrpcerror') !== -1 ||
+              errMsg.indexOf('user rejected') !== -1 ||
+              errMsg.indexOf('action_rejected') !== -1 ||
               errMsg.indexOf('execution reverted') !== -1 ||
               errMsg.indexOf('call_exception') !== -1 ||
               errMsg.indexOf('0x1b10b0f9') !== -1 ||
               errStack.indexOf('popup window was blocked') !== -1 ||
+              errStack.indexOf('user rejected') !== -1 ||
               errCode === 'CALL_EXCEPTION' ||
-              errCode === 3000
+              errCode === 3000 ||
+              errCode === 4001 ||
+              errCode === '4001' ||
+              errCode === 'ACTION_REJECTED'
             ) {
               if (e.preventDefault) e.preventDefault();
               if (e.stopImmediatePropagation) e.stopImmediatePropagation();
@@ -192,7 +214,7 @@
           window.addEventListener('unhandledrejection', function(e) {
             var reason = e && e.reason;
             var reasonMsg = (typeof reason === 'string' ? reason : ((reason && (reason.message || reason.shortMessage)) || '')).toLowerCase();
-            var reasonCode = (reason && reason.code) || '';
+            var reasonCode = (reason && (reason.code || reason.status)) || '';
             var reasonStack = ((reason && reason.stack) || '').toLowerCase();
             if (
               reasonMsg.indexOf('relay.walletconnect') !== -1 ||
@@ -204,12 +226,18 @@
               reasonMsg.indexOf('popup was blocked') !== -1 ||
               reasonMsg.indexOf('popup_blocked') !== -1 ||
               reasonMsg.indexOf('getethjsonrpcerror') !== -1 ||
+              reasonMsg.indexOf('user rejected') !== -1 ||
+              reasonMsg.indexOf('action_rejected') !== -1 ||
               reasonMsg.indexOf('execution reverted') !== -1 ||
               reasonMsg.indexOf('call_exception') !== -1 ||
               reasonMsg.indexOf('0x1b10b0f9') !== -1 ||
               reasonStack.indexOf('popup window was blocked') !== -1 ||
+              reasonStack.indexOf('user rejected') !== -1 ||
               reasonCode === 'CALL_EXCEPTION' ||
-              reasonCode === 3000
+              reasonCode === 3000 ||
+              reasonCode === 4001 ||
+              reasonCode === '4001' ||
+              reasonCode === 'ACTION_REJECTED'
             ) {
               if (e.preventDefault) e.preventDefault();
               if (e.stopImmediatePropagation) e.stopImmediatePropagation();
