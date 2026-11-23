@@ -8,6 +8,7 @@ import {
     IPriceOracle
 } from "../src/oracle/UniV3ChainlinkOracle.sol";
 import {OracleSwap} from "../src/OracleSwap.sol";
+import {ChainlinkFeedOracle} from "../src/oracle/ChainlinkFeedOracle.sol";
 import {BushidoFeeVault, IERC20} from "../src/BushidoFeeVault.sol";
 import {TestToken} from "../src/testnet/TestToken.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
@@ -244,5 +245,53 @@ contract OracleSwapTest {
         vm.prank(TRADER);
         vm.expectRevert(BushidoFeeVault.NotCollector.selector);
         market.sellWeth(1e18, 0);
+    }
+}
+
+contract ChainlinkFeedOracleTest {
+    MockFeed feed;
+    ChainlinkFeedOracle oracle;
+
+    function setUp() public {
+        vm.warp(1_800_000_000);
+        feed = new MockFeed();
+        feed.set(6_82000000, block.timestamp); // AVAX $6.82, 8 dp
+        oracle = new ChainlinkFeedOracle(IChainlinkFeed(address(feed)), 3600);
+    }
+
+    function test_scalesTo6dp() public view {
+        (uint256 px, uint256 t) = oracle.price();
+        require(px == 6_820_000, "6.82 USDC per token");
+        require(t == block.timestamp, "feed timestamp");
+    }
+
+    function test_revertsWhenStale() public {
+        uint256 old = block.timestamp - 3601;
+        feed.set(6_82000000, old);
+        vm.expectRevert(abi.encodeWithSelector(ChainlinkFeedOracle.StaleFeed.selector, old, 3600));
+        oracle.price();
+    }
+
+    function test_revertsOnBadAnswer() public {
+        feed.set(-1, block.timestamp);
+        vm.expectRevert(ChainlinkFeedOracle.BadFeedAnswer.selector);
+        oracle.price();
+    }
+
+    function test_marketTradesAtFeedPrice() public {
+        MockUSDC usdc = new MockUSDC();
+        TestToken tavax = new TestToken("Bushido Test AVAX", "tAVAX", 18);
+        BushidoFeeVault vault = new BushidoFeeVault(IERC20(address(usdc)), address(this), 1_000e6, 2_000e6, 500e6);
+        OracleSwap market = new OracleSwap(IERC20(address(tavax)), oracle, vault, address(this), 25);
+        vault.setCollector(address(market), true);
+        usdc.mint(address(market), 10_000e6);
+        tavax.mint(address(this), 10e18);
+        tavax.approve(address(market), 10e18);
+        uint256 out = market.sellWeth(10e18, 0); // "weth" = the priced asset, here tAVAX
+        // 10 x $6.82 = 68.20; 25 bps = 0.1705; out = 68.0295
+        require(out == 68_029_500, "live-priced swap");
+        feed.set(7_00000000, block.timestamp); // market moves
+        (uint256 q,,) = market.quoteSellWeth(1e18);
+        require(q == 6_982_500, "requotes at the new feed price");
     }
 }

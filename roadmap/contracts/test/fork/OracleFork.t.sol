@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {UniV3ChainlinkOracle, IUniswapV3PoolOracle, IChainlinkFeed} from "../../src/oracle/UniV3ChainlinkOracle.sol";
+import {ChainlinkFeedOracle} from "../../src/oracle/ChainlinkFeedOracle.sol";
 import {vm} from "../mocks/Vm.sol";
 
 /// @notice Reads REAL Base mainnet state. Runs only when BASE_RPC_URL is set:
@@ -37,5 +38,16 @@ contract OracleForkTest {
         emit Price("uniswap 0.3% twap", pb);
         emit Price("chainlink", cl);
         require(pa > 100e6 && pa < 100_000e6, "sane range");
+    }
+
+    /// FUJI_RPC_URL=https://api.avax-test.network/ext/bc/C/rpc forge test --match-path test/fork/*
+    function testFork_fujiLiveAvaxPrice() public {
+        string memory url = vm.envOr("FUJI_RPC_URL", string(""));
+        if (bytes(url).length == 0) return;
+        vm.createSelectFork(url);
+        ChainlinkFeedOracle o = new ChainlinkFeedOracle(IChainlinkFeed(0x5498BB86BC934c8D34FDA08E81D444153d0D06aD), 3600);
+        (uint256 px,) = o.price(); // reverts if the live feed is stale
+        emit Price("fuji chainlink AVAX/USD", px);
+        require(px > 0.5e6 && px < 1_000e6, "sane AVAX range");
     }
 }

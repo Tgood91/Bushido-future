@@ -129,3 +129,67 @@ export async function status(ethers, C, read, st, me) {
   ]);
   return { bal: f(bal), pending: f(pending), inventory: f(inv), reserve: f(res), ops: f(ops), phase: PHASES[Number(phase)], x402: f(x402), raw: { pending, inv, res, ops, phase: Number(phase) } };
 }
+
+// ------------------------------------------------------------------------------------------------
+// Live-priced test market: a test token (tAVAX on Fuji, tETH on the Sepolias) priced by the chain's own
+// Chainlink <ASSET>/USD feed, i.e. real market data. Swaps pay the 25 bps execution fee into the vault.
+export const MARKET_FEE_BPS = 25;
+
+/** Step M1: deploy the test asset, the feed oracle and the market; fund liquidity. Needs step 1 (vault). */
+export async function deployMarket(ethers, C, signer, st, chain, log) {
+  if (!st.vault) throw new Error('deploy the vault first (step 1)');
+  const m = chain.market;
+  const feed = chain.chainlink[m.feed];
+  const me = await signer.getAddress();
+  const deploy = async (name, args, key) => {
+    if (st[key]) return log(`${name} already at ${st[key]}`);
+    log(`Deploying ${name}…`);
+    const req = await new ethers.ContractFactory(C[name].abi, C[name].bytecode).getDeployTransaction(...args);
+    st[key] = (await send(ethers, signer, { data: req.data }, log)).contractAddress;
+    log(`${name}: ${st[key]}`);
+  };
+  await deploy('TestToken', [m.name, m.symbol, 18], 'asset');
+  await deploy('ChainlinkFeedOracle', [feed, m.maxStaleness], 'oracle');
+  await deploy('OracleSwap', [st.asset, st.oracle, st.vault, me, MARKET_FEE_BPS], 'market');
+  const vault = new ethers.Contract(st.vault, C.BushidoFeeVault.abi, reader(signer));
+  if (!(await vault.isCollector(st.market))) {
+    log('Letting the market pay execution fees into the vault…');
+    await send(ethers, signer, callTx(ethers, C, 'BushidoFeeVault', st.vault, 'setCollector', [st.market, true]), log);
+  }
+  log('Funding market liquidity and your test balance…');
+  await send(ethers, signer, callTx(ethers, C, 'TestUSDC', st.usdc, 'mint', [st.market, 50_000_000_000n]), log); // 50,000 tUSDC
+  await send(ethers, signer, callTx(ethers, C, 'TestToken', st.asset, 'mint', [st.market, ethers.parseEther('1000')]), log);
+  await send(ethers, signer, callTx(ethers, C, 'TestToken', st.asset, 'mint', [me, ethers.parseEther('10')]), log);
+  st.marketReady = true;
+}
+
+/** Step M2: sell `amount` of the test asset for tUSDC at the live feed price (0.5% slippage guard). */
+export async function sellAsset(ethers, C, signer, st, amount, log) {
+  const wei = ethers.parseEther(String(amount));
+  const market = new ethers.Contract(st.market, C.OracleSwap.abi, reader(signer));
+  const [out, fee, px] = await market.quoteSellWeth(wei);
+  log(`Live price ${ethers.formatUnits(px, 6)} USDC; selling ${amount} for ${ethers.formatUnits(out, 6)} tUSDC (fee ${ethers.formatUnits(fee, 6)})`);
+  await send(ethers, signer, callTx(ethers, C, 'TestToken', st.asset, 'approve', [st.market, wei]), log);
+  await send(ethers, signer, callTx(ethers, C, 'OracleSwap', st.market, 'sellWeth', [wei, (out * 995n) / 1000n]), log);
+}
+
+/** Step M3: buy the test asset with `usdc` tUSDC at the live feed price. */
+export async function buyAsset(ethers, C, signer, st, usdc, log) {
+  const units = ethers.parseUnits(String(usdc), 6);
+  const market = new ethers.Contract(st.market, C.OracleSwap.abi, reader(signer));
+  const [out, fee, px] = await market.quoteBuyWeth(units);
+  log(`Live price ${ethers.formatUnits(px, 6)} USDC; ${usdc} tUSDC buys ${ethers.formatEther(out)} (fee ${ethers.formatUnits(fee, 6)})`);
+  await send(ethers, signer, callTx(ethers, C, 'TestUSDC', st.usdc, 'approve', [st.market, units]), log);
+  await send(ethers, signer, callTx(ethers, C, 'OracleSwap', st.market, 'buyWeth', [units, (out * 995n) / 1000n]), log);
+}
+
+export async function marketStatus(ethers, C, read, st, me) {
+  if (!st.marketReady) return null;
+  const oracle = new ethers.Contract(st.oracle, C.ChainlinkFeedOracle.abi, read);
+  const asset = new ethers.Contract(st.asset, C.TestToken.abi, read);
+  const vault = new ethers.Contract(st.vault, C.BushidoFeeVault.abi, read);
+  const [[px, updated], bal, fees, now] = await Promise.all([
+    oracle.price(), asset.balanceOf(me), vault.totalCollected(1), read.getBlock('latest').then((b) => b.timestamp),
+  ]);
+  return { price: ethers.formatUnits(px, 6), ageMin: Math.max(0, Math.round((now - Number(updated)) / 60)), bal: ethers.formatEther(bal), fees: ethers.formatUnits(fees, 6) };
+}

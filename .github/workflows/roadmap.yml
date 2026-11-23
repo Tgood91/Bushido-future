@@ -41,6 +41,7 @@ jobs:
       - name: Fork test against real Base prices
         env:
           BASE_RPC_URL: https://mainnet.base.org
+          FUJI_RPC_URL: https://api.avax-test.network/ext/bc/C/rpc
         run: forge test --match-path 'test/fork/*' -vv
 
   solver:
