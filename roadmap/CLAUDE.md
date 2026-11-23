@@ -12,6 +12,9 @@ Standing instructions for anyone (human or Claude) working in `roadmap/`.
   private key. Unattended bots (the solver) read `PRIVATE_KEY` from the environment on the owner's machine.
 - **Execution fee is 25 bps.** Fees go to `BushidoFeeVault` and split 70% inventory / 10% reserve / 20% ops.
 - **Cross-chain inventory moves over Hyperlane warp routes**; balances across chains are reconciled offchain.
+- **Faucet:** `faucet/` sends 0.05 ETH on Ethereum Sepolia and Base Sepolia per tap, origin-locked, rate-limited per
+  address and IP (24 h) with a daily cap. Its key lives only in Render's environment (`FAUCET_PRIVATE_KEY`).
+- **Every network the user gives or we add** gets an Add-to-wallet button on the burner page via `chains.json`.
 - **Solving pair today:** Base Sepolia (home, tUSDC collateral) ↔ Arbitrum Sepolia (synthetic). Avalanche Fuji
   is set up for the vault, x402 and the live-priced tAVAX market.
 
@@ -30,3 +33,6 @@ Chainlink feed has the right `description()` and a recent `updatedAt`.
 - `BushidoFeeVault.absorbSurplus` stays owner/solver/rebalancer-only, so nobody can absorb a fill repayment before
   `settleFillFromBalance` uses it.
 - When a check fails, make one fix attempt; if it still fails, stop and report.
+- Keep `npm audit` at 0. Pin exact versions (ethers is 6.17.0 in `solver/`, `testnet/` and the page's CDN script;
+  keep all three in step). `contracts/.npmrc` sets `legacy-peer-deps=true`: Hyperlane's peer deps (ethers v5 tooling,
+  elliptic) are never used to compile its Solidity and only add vulnerable packages.

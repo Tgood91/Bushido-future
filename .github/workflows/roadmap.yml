@@ -59,6 +59,22 @@ jobs:
       - name: Testnet prices tied to mainnet (live Chainlink feeds)
         run: node price-check.mjs
 
+  faucet:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: roadmap/faucet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: node --check server.mjs
+      - run: npm audit --audit-level=low
+      - run: npm test
+
   docker:
     runs-on: ubuntu-latest
     needs: app

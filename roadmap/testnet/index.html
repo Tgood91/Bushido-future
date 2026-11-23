@@ -23,6 +23,9 @@
   #who { word-break:break-all; }
   #log { background:#07080A; border:1px solid var(--line); border-radius:6px; padding:10px; font-size:12px; max-height:320px; overflow:auto; }
   .addnet { text-align:center; border-color:var(--gold); margin-bottom:12px; }
+  .netrow { display:flex; align-items:center; gap:8px; border-bottom:1px solid rgba(200,157,84,.15); padding:4px 0; }
+  .netrow .nm { flex:1; min-width:0; } .netrow .nm small { color:var(--muted); display:block; word-break:break-all; }
+  .netrow button { width:auto; margin:0; padding:8px 12px; white-space:nowrap; }
   .ok { color:var(--ok); } .bad { color:var(--bad); }
 </style>
 </head>
@@ -31,6 +34,12 @@
   <h1>⛩️ BUSHIDO VAULT · <span id="netname">Base Sepolia</span></h1>
   <div class="sub" id="chainlist"></div>
   <button id="addnet" class="addnet">➕ Add <span id="addname">this network</span> to my wallet</button>
+
+  <div class="card">
+    <div class="label">Networks · add any of them to your wallet</div>
+    <div id="netlist"></div>
+    <button id="addall">➕ Add all networks</button>
+  </div>
   <div class="sub">Testnet only. Deploys a test token (tUSDC), BushidoFeeVault and X402Forwarder from your burner, then runs an
     x402 payment → flush → 70/10/20 split → seed → graduate. Open this page in the browser inside the wallet app that holds your burner.</div>
 
@@ -39,6 +48,13 @@
     <button id="connect">Connect burner</button>
     <div>Address: <span id="who">—</span></div>
     <div><span id="balname">ETH</span>: <span id="bal">—</span></div>
+  </div>
+
+  <div class="card">
+    <div class="label">Faucet · free testnet gas</div>
+    <button id="drip" disabled>💧 Get 0.05 ETH on Sepolia + Base Sepolia</button>
+    <div class="sub" id="faucetinfo" style="margin:6px 0 0">Connect your burner first; it doesn't need gas to connect.</div>
+    <div id="dripout"></div>
   </div>
 
   <div class="card">
@@ -81,12 +97,14 @@
   <button id="reset">Start over (forget saved addresses)</button>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.17.0/ethers.umd.min.js"></script>
 <script type="module">
 import * as F from './flow.js';
 // Chains come from chains.json (verified EVM testnets); Base Sepolia by default. ?chain=<key>, e.g. arbitrum-sepolia,
 // optimism-sepolia, monad-testnet; ?chain=local for anvil.
-const CHAINS = { ...(await (await fetch('./chains.json')).json()).chains,
+const REGISTRY = await (await fetch('./chains.json')).json();
+const FAUCET = { ...REGISTRY.faucet, url: new URLSearchParams(location.search).get('faucet') || REGISTRY.faucet?.url };
+const CHAINS = { ...REGISTRY.chains,
   local: { id: 31337, hex: '0x7a69', name: 'Local anvil', rpc: 'http://127.0.0.1:8545', explorer: 'http://127.0.0.1:8545', coin: 'ETH' } };
 const CHAIN = CHAINS[new URLSearchParams(location.search).get('chain')] || CHAINS['base-sepolia'];
 const $ = (id) => document.getElementById(id);
@@ -105,8 +123,16 @@ function showAddrs() {
   const names = { usdc: 'TestUSDC (tUSDC)', vault: 'BushidoFeeVault', fwd: 'X402Forwarder (x402 payTo)', asset: `TestToken (${CHAIN.market?.symbol})`, oracle: 'ChainlinkFeedOracle (live price)', market: 'OracleSwap (25 bps)' };
   $('addrs').innerHTML = Object.entries(names).filter(([k]) => st[k]).map(([k, n]) => `<div>${n}: <a target="_blank" rel="noopener" href="${CHAIN.explorer}/address/${st[k]}">${st[k]}</a></div>`).join('') || 'Nothing deployed yet.';
 }
-const addParams = () => ({ chainId: CHAIN.hex, chainName: CHAIN.name, rpcUrls: [CHAIN.rpc], blockExplorerUrls: [CHAIN.explorer],
-  nativeCurrency: { name: CHAIN.coin, symbol: CHAIN.coin, decimals: 18 } });
+const addParams = (c = CHAIN) => ({ chainId: c.hex, chainName: c.name, rpcUrls: [c.rpc], blockExplorerUrls: [c.explorer],
+  nativeCurrency: { name: c.coin, symbol: c.coin, decimals: 18 } });
+/** Add one network. Wallets that ship with a network (e.g. Sepolia) may refuse to re-add it: that counts as added. */
+async function addChain(c) {
+  try { await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [addParams(c)] }); return 'added'; }
+  catch (e) {
+    if (e.code === 4001) throw e; // user rejected
+    return 'already in wallet';
+  }
+}
 async function addAndSwitch() {
   // Some wallets refuse wallet_addEthereumChain for networks they ship with (e.g. Sepolia): then just switch.
   try { await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [addParams()] }); }
@@ -132,6 +158,58 @@ $('addnet').onclick = async () => {
     log(`${CHAIN.name} (chain ${CHAIN.id}) added to your wallet and selected`, 'ok');
   } catch (e) { log(`Adding ${CHAIN.name} failed: ${e.message}`, 'bad'); }
 };
+const NETS = Object.entries(CHAINS).filter(([k]) => k !== 'local');
+$('netlist').innerHTML = NETS.map(([k, c]) => `<div class="netrow"><div class="nm"><a href="?chain=${k}" style="color:var(--gold)">${c.name}</a>`
+  + ` · ${c.id} · ${c.coin}<small>${c.rpc}</small></div><button data-net="${k}">➕ Add</button></div>`).join('');
+document.querySelectorAll('#netlist button[data-net]').forEach((btn) => {
+  btn.onclick = async () => {
+    if (!window.ethereum) return log('No wallet found. Open this page in the browser inside the wallet app that holds your burner.', 'bad');
+    const c = CHAINS[btn.dataset.net];
+    try { const r = await addChain(c); btn.textContent = '✓ Added'; log(`${c.name} (chain ${c.id}): ${r}`, 'ok'); }
+    catch (e) { log(`Adding ${c.name} failed: ${e.message}`, 'bad'); }
+  };
+});
+$('addall').onclick = async () => {
+  if (!window.ethereum) return log('No wallet found. Open this page in the browser inside the wallet app that holds your burner.', 'bad');
+  let n = 0;
+  for (const [k, c] of NETS) { // one wallet prompt per network, in order
+    const btn = document.querySelector(`#netlist button[data-net="${k}"]`);
+    try { const r = await addChain(c); btn.textContent = '✓ Added'; n++; log(`${c.name} (chain ${c.id}): ${r}`, 'ok'); }
+    catch (e) { log(`${c.name} skipped: ${e.message}`, 'bad'); }
+  }
+  $('addall').textContent = `✓ ${n} of ${NETS.length} networks in your wallet`;
+};
+
+async function faucetStatus() {
+  try {
+    const s = await (await fetch(`${FAUCET.url}/status`, { cache: 'no-store' })).json();
+    if (!s.configured) return ($('faucetinfo').textContent = 'Faucet is being set up (not funded yet).');
+    const parts = FAUCET.chains.map((k) => `${s.chains[k].name}: ${Number(s.chains[k].balance).toFixed(3)} ETH left`);
+    $('faucetinfo').textContent = `${s.drip} ETH per chain, once per wallet every 24 h · ${parts.join(' · ')}`;
+  } catch { $('faucetinfo').textContent = 'Faucet is waking up or offline; try again in a minute.'; }
+}
+$('drip').onclick = async () => {
+  if (!me) return log('Connect your burner first.', 'bad');
+  $('drip').disabled = true;
+  $('drip').textContent = '💧 Sending…';
+  try {
+    const r = await fetch(`${FAUCET.url}/drip`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ address: me }) });
+    const { results = [], error } = await r.json();
+    if (error) throw new Error(error);
+    $('dripout').innerHTML = results.map((x) => x.status === 200
+      ? `<div class="ok">✓ ${x.amount} ETH on ${x.name}: <a target="_blank" rel="noopener" href="${x.explorer}" style="color:var(--gold)">${x.tx.slice(0, 12)}…</a></div>`
+      : `<div class="bad">${x.error}</div>`).join('');
+    for (const x of results) log(x.status === 200 ? `Faucet: ${x.amount} ETH sent on ${x.name} (${x.tx})` : `Faucet: ${x.error}`, x.status === 200 ? 'ok' : 'bad');
+    $('drip').textContent = results.some((x) => x.status === 200) ? '✓ Sent: check your balance in a few seconds' : '💧 Get 0.05 ETH on Sepolia + Base Sepolia';
+  } catch (e) {
+    log(`Faucet failed: ${e.message}`, 'bad');
+    $('drip').textContent = '💧 Get 0.05 ETH on Sepolia + Base Sepolia';
+  } finally {
+    $('drip').disabled = false;
+    faucetStatus();
+  }
+};
+faucetStatus();
 async function refresh() {
   if (!me) return;
   $('bal').textContent = Number(ethers.formatEther(await read.getBalance(me))).toFixed(5);
@@ -164,7 +242,7 @@ $('connect').onclick = async () => {
     await toTestnet();
     signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
     me = await signer.getAddress(); load();
-    $('who').textContent = me; $('connect').textContent = 'Connected';
+    $('who').textContent = me; $('connect').textContent = 'Connected'; $('drip').disabled = false;
     log(`Connected ${me} on ${CHAIN.name}`);
     if (Number(ethers.formatEther(await read.getBalance(me))) < 0.01) log(`This burner has under 0.01 ${CHAIN.coin} on ${CHAIN.name}: get some from a faucet first.`, 'bad');
     await refresh();

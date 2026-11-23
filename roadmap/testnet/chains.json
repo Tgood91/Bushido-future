@@ -33,7 +33,7 @@
     "sepolia": {
       "id": 11155111,
       "hex": "0xaa36a7",
-      "name": "Sepolia",
+      "name": "Ethereum Sepolia",
       "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
       "explorer": "https://sepolia.etherscan.io",
       "coin": "ETH",
@@ -42,6 +42,21 @@
         "mailbox": "0xfFAEF09B3cd11D9b20d1a19bECca54EEC2884766",
         "igp": "0x6f2756380FD49228ae25Aa7F2817993cB74Ecc56",
         "registryKey": "sepolia"
+      },
+      "chainlink": {
+        "ETH/USD": "0x694AA1769357215DE4FAC081bf1f309aDC325306"
+      },
+      "market": {
+        "name": "Bushido Test ETH",
+        "symbol": "tETH",
+        "feed": "ETH/USD",
+        "maxStaleness": 7200,
+        "mainnetReference": {
+          "chain": "Ethereum",
+          "chainId": 1,
+          "rpc": "https://ethereum-rpc.publicnode.com",
+          "feed": "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+        }
       }
     },
     "arbitrum-sepolia": {
@@ -86,6 +101,21 @@
         "mailbox": "0x6966b0E55883d49BFB24539356a2f8A673E02039",
         "igp": "0x28B02B97a850872C4D33C3E024fab6499ad96564",
         "registryKey": "optimismsepolia"
+      },
+      "chainlink": {
+        "ETH/USD": "0x61Ec26aA57019C486B10502285c5A3D4A4750AD7"
+      },
+      "market": {
+        "name": "Bushido Test ETH",
+        "symbol": "tETH",
+        "feed": "ETH/USD",
+        "maxStaleness": 3600,
+        "mainnetReference": {
+          "chain": "Ethereum",
+          "chainId": 1,
+          "rpc": "https://ethereum-rpc.publicnode.com",
+          "feed": "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+        }
       }
     },
     "unichain-sepolia": {
@@ -100,6 +130,21 @@
         "mailbox": "0xDDcFEcF17586D08A5740B7D91735fcCE3dfe3eeD",
         "igp": "0xa3AB7E6cE24E6293bD5320A53329Ef2f4DE73fCA",
         "registryKey": "unichaintestnet"
+      },
+      "chainlink": {
+        "ETH/USD": "0xd9c93081210dFc33326B2af4C2c11848095E6a9a"
+      },
+      "market": {
+        "name": "Bushido Test ETH",
+        "symbol": "tETH",
+        "feed": "ETH/USD",
+        "maxStaleness": 90000,
+        "mainnetReference": {
+          "chain": "Ethereum",
+          "chainId": 1,
+          "rpc": "https://ethereum-rpc.publicnode.com",
+          "feed": "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+        }
       }
     },
     "linea-sepolia": {
@@ -114,7 +159,8 @@
         "mailbox": "0x7323E06E40B0Fb82Dc26D309AaF14e49D266A6a7",
         "igp": null,
         "registryKey": "lineasepolia"
-      }
+      },
+      "note": "No live-priced market: Chainlink ETH/USD on Linea Sepolia was ~6.9 days stale and 5% off mainnet when checked (2026-11-23). Vault and x402 steps still work."
     },
     "polygon-amoy": {
       "id": 80002,
@@ -128,6 +174,21 @@
         "mailbox": "0x54148470292C24345fb828B003461a9444414517",
         "igp": "0x6c13643B3927C57DB92c790E4E3E7Ee81e13f78C",
         "registryKey": "polygonamoy"
+      },
+      "chainlink": {
+        "ETH/USD": "0xF0d50568e3A7e8259E16663972b11910F89BD8e7"
+      },
+      "market": {
+        "name": "Bushido Test ETH",
+        "symbol": "tETH",
+        "feed": "ETH/USD",
+        "maxStaleness": 3600,
+        "mainnetReference": {
+          "chain": "Ethereum",
+          "chainId": 1,
+          "rpc": "https://ethereum-rpc.publicnode.com",
+          "feed": "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+        }
       }
     },
     "bsc-testnet": {
@@ -142,6 +203,21 @@
         "mailbox": "0xF9F6F5646F478d5ab4e20B0F910C92F1CCC9Cc6D",
         "igp": "0x0dD20e410bdB95404f71c5a4e7Fa67B892A5f949",
         "registryKey": "bsctestnet"
+      },
+      "chainlink": {
+        "BNB/USD": "0x2514895c72f50D8bd4B4F9b1110F0D6bD2c97526"
+      },
+      "market": {
+        "name": "Bushido Test BNB",
+        "symbol": "tBNB",
+        "feed": "BNB/USD",
+        "maxStaleness": 7200,
+        "mainnetReference": {
+          "chain": "BNB Chain",
+          "chainId": 56,
+          "rpc": "https://bsc-rpc.publicnode.com",
+          "feed": "0x0567F2323251f0Aab15c8dFb1967E4e8A7D42aeE"
+        }
       }
     },
     "avalanche-fuji": {
@@ -183,7 +259,30 @@
       "explorer": "https://testnet.monadexplorer.com",
       "coin": "MON",
       "hyperlane": null,
-      "note": "Hyperlane registry lists a Mailbox here but no contract is deployed at it (checked 2026-11-23); vault-only for now."
+      "note": "Hyperlane registry lists a Mailbox here but no contract is deployed at it (checked 2026-11-23); vault-only for now.",
+      "chainlink": {
+        "ETH/USD": "0x5c8c8482f064049248F86D9F4aFa4B1f2F5b6d31"
+      },
+      "market": {
+        "name": "Bushido Test ETH",
+        "symbol": "tETH",
+        "feed": "ETH/USD",
+        "maxStaleness": 90000,
+        "mainnetReference": {
+          "chain": "Ethereum",
+          "chainId": 1,
+          "rpc": "https://ethereum-rpc.publicnode.com",
+          "feed": "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+        }
+      }
     }
+  },
+  "faucet": {
+    "url": "https://solving-faucet.onrender.com",
+    "amount": "0.05",
+    "chains": [
+      "sepolia",
+      "base-sepolia"
+    ]
   }
 }

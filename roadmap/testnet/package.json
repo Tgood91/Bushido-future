@@ -3,5 +3,5 @@
   "private": true,
   "type": "module",
   "scripts": { "dryrun": "node dryrun.mjs" },
-  "devDependencies": { "ethers": "6.13.4" }
+  "devDependencies": { "ethers": "6.17.0" }
 }
