@@ -1,0 +1,7 @@
+{
+  "name": "bushido-vault-testnet",
+  "private": true,
+  "type": "module",
+  "scripts": { "dryrun": "node dryrun.mjs" },
+  "devDependencies": { "ethers": "6.13.4" }
+}

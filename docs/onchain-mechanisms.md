@@ -55,6 +55,15 @@ USDC=<base usdc> DEPLOYER=<signer addr> OWNER=<multisig> forge script script/Dep
 ```
 Then `OWNER` must call `vault.acceptOwnership()`.
 
+## Testnet run from the burner wallet
+`testnet/` is a static page you open **inside the wallet app that holds your burner** (same pattern as the BTG
+governance test). Your wallet only signs and sends; reads, gas estimates and receipts go through the public RPC.
+Steps: deploy tUSDC + vault + forwarder → mint tUSDC → sign an x402 EIP-3009 payment to the forwarder and settle it
+(the burner plays the facilitator) → flush → seed to 6,250 → graduate to `SELF_SOLVE`.
+Base Sepolia by default; `?chain=monad-testnet` or `?chain=local` (anvil). Needs a little testnet gas in the burner.
+
+Local dry run: `anvil` in one terminal, then `cd testnet && npm i && npm run dryrun`.
+
 ## Not built yet (next steps)
 1. **x402 resource server + keeper**: the 402 middleware on the agent API pointing `payTo` at the forwarder, and a cron that calls `flush()`.
 2. **Router fee hook** charging the execution fee on routed notional.

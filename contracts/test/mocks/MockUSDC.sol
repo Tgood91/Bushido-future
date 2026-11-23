@@ -4,9 +4,9 @@ pragma solidity ^0.8.24;
 /// @dev USDC-like token with EIP-3009 transferWithAuthorization, which is what x402
 ///      facilitators call to settle an "exact" scheme payment on Base.
 contract MockUSDC {
-    string public constant name = "USD Coin";
+    string public constant name = "Bushido Test USDC";
     string public constant version = "2";
-    string public constant symbol = "USDC";
+    string public constant symbol = "tUSDC";
     uint8 public constant decimals = 6;
 
     bytes32 public constant TRANSFER_WITH_AUTHORIZATION_TYPEHASH = keccak256(

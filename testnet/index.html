@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bushido Vault Testnet</title>
+<style>
+  :root { --bg:#0B0C0E; --card:#121418; --gold:#E6B86A; --text:#E5D3B3; --muted:#A38F6D; --ok:#34D399; --bad:#F87171; --line:rgba(200,157,84,.45); }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 'Courier New',monospace; }
+  main { max-width:720px; margin:0 auto; padding:16px; }
+  h1 { color:var(--gold); font-size:20px; letter-spacing:.12em; margin:8px 0 4px; }
+  .sub { color:var(--muted); font-size:12px; margin-bottom:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; }
+  .label { color:var(--gold); font-size:11px; letter-spacing:.12em; text-transform:uppercase; font-weight:bold; margin-bottom:6px; }
+  button { width:100%; margin:4px 0; padding:12px; background:#16191F; color:var(--gold); border:1px solid var(--line); border-radius:6px; font:bold 14px 'Courier New',monospace; text-align:left; }
+  button:disabled { opacity:.4; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .row input { width:90px; padding:10px; background:#07080A; color:var(--text); border:1px solid var(--line); border-radius:6px; font:14px 'Courier New',monospace; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; }
+  .grid b { color:#fff; }
+  #addrs a { color:var(--gold); word-break:break-all; }
+  #who { word-break:break-all; }
+  #log { background:#07080A; border:1px solid var(--line); border-radius:6px; padding:10px; font-size:12px; max-height:320px; overflow:auto; }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <h1>⛩️ BUSHIDO VAULT · <span id="netname">Base Sepolia</span></h1>
+  <div class="sub">Testnet only. Deploys a test token (tUSDC), BushidoFeeVault and X402Forwarder from your burner, then runs an
+    x402 payment → flush → 70/10/20 split → seed → graduate. Open this page in the browser inside the wallet app that holds your burner.</div>
+
+  <div class="card">
+    <div class="label">Wallet</div>
+    <button id="connect">Connect burner</button>
+    <div>Address: <span id="who">—</span></div>
+    <div><span id="balname">ETH</span>: <span id="bal">—</span></div>
+  </div>
+
+  <div class="card">
+    <div class="label">Steps</div>
+    <button id="b1" disabled>1 · Deploy tUSDC + vault + forwarder</button>
+    <button id="b2" disabled>2 · Mint 10,000 tUSDC to me</button>
+    <div class="row"><button id="b3" disabled>3 · Pay x402 jobs (sign + settle)</button><input id="jobs" type="number" min="1" value="100" aria-label="jobs"></div>
+    <button id="b4" disabled>4 · Flush forwarder → vault</button>
+    <button id="b5" disabled>5 · Seed to 6,250 + graduate to SELF_SOLVE</button>
+  </div>
+
+  <div class="card">
+    <div class="label">Vault state</div>
+    <div class="grid">
+      <div>Phase</div><b id="phase">—</b>
+      <div>My tUSDC</div><b id="tbal">—</b>
+      <div>Forwarder pending</div><b id="pending">—</b>
+      <div>Total x402 collected</div><b id="x402">—</b>
+      <div>Inventory (70%)</div><b id="inv">—</b>
+      <div>Reserve (10%)</div><b id="res">—</b>
+      <div>Ops (20%)</div><b id="ops">—</b>
+    </div>
+  </div>
+
+  <div class="card"><div class="label">Contracts</div><div id="addrs">Nothing deployed yet.</div></div>
+  <div class="card"><div class="label">Log</div><div id="log"></div></div>
+  <button id="reset">Start over (forget saved addresses)</button>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+<script type="module">
+import * as F from './flow.js';
+// Base Sepolia by default; ?chain=monad-testnet for Monad testnet, ?chain=local for anvil.
+const CHAINS = {
+  'base-sepolia': { id: 84532, hex: '0x14a34', name: 'Base Sepolia', rpc: 'https://sepolia.base.org', explorer: 'https://sepolia.basescan.org', coin: 'ETH' },
+  local: { id: 31337, hex: '0x7a69', name: 'Local anvil', rpc: 'http://127.0.0.1:8545', explorer: 'http://127.0.0.1:8545', coin: 'ETH' },
+  'monad-testnet': { id: 10143, hex: '0x279f', name: 'Monad testnet', rpc: 'https://testnet-rpc.monad.xyz', explorer: 'https://testnet.monadexplorer.com', coin: 'MON' },
+};
+const CHAIN = CHAINS[new URLSearchParams(location.search).get('chain')] || CHAINS['base-sepolia'];
+const $ = (id) => document.getElementById(id);
+$('netname').textContent = CHAIN.name;
+$('balname').textContent = `${CHAIN.name} ${CHAIN.coin}`;
+const read = new ethers.JsonRpcProvider(CHAIN.rpc, CHAIN.id, { staticNetwork: true });
+F.setRead(read);
+let C, signer, me, st = {}, busy = false;
+const key = () => `bushido-vault:${CHAIN.id}:${me}`;
+const save = () => { try { localStorage.setItem(key(), JSON.stringify(st)); } catch {} };
+const load = () => { try { st = JSON.parse(localStorage.getItem(key()) || '{}'); } catch { st = {}; } };
+function log(m, cls) { const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = `${new Date().toLocaleTimeString()}  ${m}`; $('log').prepend(d); }
+function showAddrs() {
+  const names = { usdc: 'TestUSDC (tUSDC)', vault: 'BushidoFeeVault', fwd: 'X402Forwarder (x402 payTo)' };
+  $('addrs').innerHTML = Object.entries(names).filter(([k]) => st[k]).map(([k, n]) => `<div>${n}: <a target="_blank" rel="noopener" href="${CHAIN.explorer}/address/${st[k]}">${st[k]}</a></div>`).join('') || 'Nothing deployed yet.';
+}
+async function toTestnet() {
+  const cur = await window.ethereum.request({ method: 'eth_chainId' });
+  if (parseInt(cur, 16) === CHAIN.id) return;
+  try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN.hex }] }); }
+  catch (e) {
+    if (e.code !== 4902 && !/unrecognized|not added|4902/i.test(String(e.message))) throw e;
+    await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [{ chainId: CHAIN.hex, chainName: CHAIN.name, rpcUrls: [CHAIN.rpc], blockExplorerUrls: [CHAIN.explorer], nativeCurrency: { name: CHAIN.coin, symbol: CHAIN.coin, decimals: 18 } }] });
+  }
+}
+async function refresh() {
+  if (!me) return;
+  $('bal').textContent = Number(ethers.formatEther(await read.getBalance(me))).toFixed(5);
+  showAddrs();
+  const s = st.deployed ? await F.status(ethers, C, read, st, me) : null;
+  for (const [id, k] of [['phase', 'phase'], ['tbal', 'bal'], ['pending', 'pending'], ['x402', 'x402'], ['inv', 'inventory'], ['res', 'reserve'], ['ops', 'ops']]) $(id).textContent = s ? s[k] : '—';
+  const ready = { b1: !st.deployed, b2: !!st.deployed, b3: !!st.deployed && Number(s?.bal) > 0, b4: !!st.deployed && s?.raw.pending >= F.CFG.minFlush,
+    b5: !!st.deployed && s?.raw.phase === 0 };
+  for (const [b, on] of Object.entries(ready)) $(b).disabled = !on || busy;
+}
+async function run(label, fn) {
+  if (busy) return; busy = true; await refresh().catch(() => {});
+  try { await toTestnet(); await fn(); log(`${label}: done`, 'ok'); }
+  catch (e) { log(`${label} failed: ${e.shortMessage || e.reason || e.message}`, 'bad'); }
+  finally { save(); busy = false; await refresh().catch(() => {}); }
+}
+$('connect').onclick = async () => {
+  if (!window.ethereum) return log('No wallet found. Open this page in the browser inside the wallet app that holds your burner.', 'bad');
+  try {
+    C = C || (await (await fetch('./contracts.json')).json()).contracts;
+    await window.ethereum.request({ method: 'eth_requestAccounts' });
+    await toTestnet();
+    signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
+    me = await signer.getAddress(); load();
+    $('who').textContent = me; $('connect').textContent = 'Connected';
+    log(`Connected ${me} on ${CHAIN.name}`);
+    if (Number(ethers.formatEther(await read.getBalance(me))) < 0.01) log(`This burner has under 0.01 ${CHAIN.coin} on ${CHAIN.name}: get some from a faucet first.`, 'bad');
+    await refresh();
+  } catch (e) { log('Connect failed: ' + (e.shortMessage || e.message), 'bad'); }
+};
+$('b1').onclick = () => run('Deploy', () => F.deployAll(ethers, C, signer, st, (m) => { log(m); save(); showAddrs(); }));
+$('b2').onclick = () => run('Mint', () => F.mint(ethers, C, signer, st, log));
+$('b3').onclick = () => run('x402 payment', () => F.payX402(ethers, C, signer, st, Math.max(1, parseInt($('jobs').value, 10) || 1), log));
+$('b4').onclick = () => run('Flush', () => F.flush(ethers, C, signer, st, log));
+$('b5').onclick = () => run('Seed + graduate', () => F.seedAndAdvance(ethers, C, signer, st, log));
+let resetArmed = false; // two taps: some wallet browsers block confirm() pop-ups
+$('reset').onclick = () => {
+  if (!resetArmed) { resetArmed = true; $('reset').textContent = 'Tap again to forget the saved addresses and redeploy'; setTimeout(() => { resetArmed = false; $('reset').textContent = 'Start over (forget saved addresses)'; }, 8000); return; }
+  resetArmed = false; $('reset').textContent = 'Start over (forget saved addresses)';
+  st = {}; save(); $('log').innerHTML = ''; log('Saved addresses forgotten: step 1 deploys a fresh set.'); refresh();
+};
+setInterval(() => refresh().catch(() => {}), 5000);
+</script>
+</body>
+</html>
