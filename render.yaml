@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: bushido-roadmap
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /_stcore/health
+    autoDeploy: true
