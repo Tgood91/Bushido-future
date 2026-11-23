@@ -27,8 +27,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
       - run: forge build --sizes
       - run: forge test -vv
+      - name: Fork test against real Base prices
+        env:
+          BASE_RPC_URL: https://mainnet.base.org
+        run: forge test --match-path 'test/fork/*' -vv
 
   docker:
     runs-on: ubuntu-latest

@@ -55,6 +55,24 @@ USDC=<base usdc> DEPLOYER=<signer addr> OWNER=<multisig> forge script script/Dep
 ```
 Then `OWNER` must call `vault.acceptOwnership()`.
 
+## Real prices: `UniV3ChainlinkOracle` + `OracleSwap` (tWETH ↔ tUSDC)
+- **Price** = Uniswap v3 WETH/USDC **30-min TWAP** on Base (0.05% pool `0xd0b5…F224`), tick → price via
+  `exp(tick·ln 1.0001)` (Solady `expWad`). **Cross-checked** against Chainlink ETH/USD (`0x7104…Bb70`):
+  `price()` reverts if Chainlink is older than 1 h or the two differ by more than 2%.
+- **OracleSwap** swaps test tokens at that price from its own inventory and sends a 10 bps execution fee to the
+  vault as `EXECUTION`. This is the router fee hook: every swap compounds solver inventory.
+- 0x was not used: its prices come from an offchain API (needs a key), whereas Uniswap/Chainlink are readable onchain.
+
+On an **anvil fork of Base mainnet** the test tokens trade at the live market price:
+```bash
+anvil --fork-url https://mainnet.base.org          # terminal 1 (wait for it to finish loading)
+cd contracts && npm ci                              # terminal 2
+D=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266        # anvil's unlocked account 0
+DEPLOYER=$D forge script script/DeployOracleMarket.s.sol:DeployOracleMarket \
+  --rpc-url http://127.0.0.1:8545 --broadcast --unlocked --sender $D
+```
+Fork test (real state, no deploy): `BASE_RPC_URL=https://mainnet.base.org forge test --match-path 'test/fork/*' -vvvv`.
+
 ## Testnet run from the burner wallet
 `testnet/` is a static page you open **inside the wallet app that holds your burner** (same pattern as the BTG
 governance test). Your wallet only signs and sends; reads, gas estimates and receipts go through the public RPC.
@@ -66,7 +84,7 @@ Local dry run: `anvil` in one terminal, then `cd testnet && npm i && npm run dry
 
 ## Not built yet (next steps)
 1. **x402 resource server + keeper**: the 402 middleware on the agent API pointing `payTo` at the forwarder, and a cron that calls `flush()`.
-2. **Router fee hook** charging the execution fee on routed notional.
+2. **Router fee hook on a real router** (OracleSwap does it for the test market; production routing still needs it).
 3. **Solver executor** (offchain) that draws, fills, settles, and is the only `solver` address.
 4. **Bridge settlement verification** — in `BRIDGE` phase the vault currently trusts the solver to repay; loss is bounded
    only by caps, timeouts and the reserve. Next: repay against a verified origin-chain fill proof (e.g. NEAR Intents

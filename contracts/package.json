@@ -1,0 +1,5 @@
+{
+  "name": "bushido-contracts",
+  "private": true,
+  "devDependencies": { "solady": "0.1.26" }
+}

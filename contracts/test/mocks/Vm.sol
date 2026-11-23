@@ -14,6 +14,8 @@ interface Vm {
     function sign(uint256 privateKey, bytes32 digest) external returns (uint8 v, bytes32 r, bytes32 s);
     function envAddress(string calldata) external returns (address);
     function envOr(string calldata, uint256) external returns (uint256);
+    function envOr(string calldata, string calldata) external returns (string memory);
+    function createSelectFork(string calldata) external returns (uint256);
     function startBroadcast(address signer) external;
     function stopBroadcast() external;
 }
