@@ -21,7 +21,13 @@
         "name": "Bushido Test ETH",
         "symbol": "tETH",
         "feed": "ETH/USD",
-        "maxStaleness": 3600
+        "maxStaleness": 3600,
+        "mainnetReference": {
+          "chain": "Base",
+          "chainId": 8453,
+          "rpc": "https://mainnet.base.org",
+          "feed": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70"
+        }
       }
     },
     "sepolia": {
@@ -59,7 +65,13 @@
         "name": "Bushido Test ETH",
         "symbol": "tETH",
         "feed": "ETH/USD",
-        "maxStaleness": 3600
+        "maxStaleness": 3600,
+        "mainnetReference": {
+          "chain": "Base",
+          "chainId": 8453,
+          "rpc": "https://mainnet.base.org",
+          "feed": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70"
+        }
       }
     },
     "optimism-sepolia": {
@@ -154,7 +166,13 @@
         "name": "Bushido Test AVAX",
         "symbol": "tAVAX",
         "feed": "AVAX/USD",
-        "maxStaleness": 3600
+        "maxStaleness": 3600,
+        "mainnetReference": {
+          "chain": "Avalanche C-Chain",
+          "chainId": 43114,
+          "rpc": "https://api.avax.network/ext/bc/C/rpc",
+          "feed": "0x0A77230d17318075983913bC2145DB16C7366156"
+        }
       }
     },
     "monad-testnet": {
