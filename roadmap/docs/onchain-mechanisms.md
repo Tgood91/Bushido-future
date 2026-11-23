@@ -12,7 +12,7 @@ Any fill that isn't settled in time is written off by anyone (`markDefault`) and
 
 ## Fee sources → `BushidoFeeVault` (Base, USDC)
 1. **x402 job fee** — 0.01 USDC per request, paid to `X402Forwarder` (see below), which batches and forwards to the vault.
-2. **Execution fee** — bps of routed notional (default modelled at 10 bps), charged by the router and forwarded via `collectFee(EXECUTION, amt)`.
+2. **Execution fee** — bps of routed notional (default 25 bps), charged by the router and forwarded via `collectFee(EXECUTION, amt)`.
 3. **Solver spread** — once self-solving, any repayment above principal in `settleFill` is profit and is re-split automatically.
 
 Every fee is split **70% inventory / 10% loss reserve / 20% ops**. The contract enforces a retention floor:
@@ -32,9 +32,9 @@ All tunable via `setThresholds` / `setRisk`.
 - Inventory and reserve can only be withdrawn in `ROUTING` with zero outstanding.
 
 ## Honest economics (default projection in the app)
-200 trades/day × 250 USDC avg, 10 bps execution fee, 5 bps spread once self-solving:
-- Retained/day in ROUTING: 200 × (0.01 + 0.25) × 0.7 ≈ **36 USDC** → ~**172 days** to `SELF_SOLVE`.
-- After that spread compounds too: ≈ 54 USDC/day → ~**520 days** total to `BRIDGE`.
+200 trades/day × 250 USDC avg, 25 bps execution fee, 5 bps spread once self-solving:
+- Retained/day in ROUTING: 200 × (0.01 + 0.625) × 0.7 ≈ **89 USDC** → ~**70 days** to `SELF_SOLVE`.
+- After that spread compounds too: ≈ 106 USDC/day → ~**247 days** total to `BRIDGE`.
 - **x402 fees alone are negligible** (1M jobs = 7,000 USDC retained). Execution bps on notional is the real engine.
   A founder seed via `seedInventory()` shortens this linearly.
 
@@ -59,7 +59,7 @@ Then `OWNER` must call `vault.acceptOwnership()`.
 - **Price** = Uniswap v3 WETH/USDC **30-min TWAP** on Base (0.05% pool `0xd0b5…F224`), tick → price via
   `exp(tick·ln 1.0001)` (Solady `expWad`). **Cross-checked** against Chainlink ETH/USD (`0x7104…Bb70`):
   `price()` reverts if Chainlink is older than 1 h or the two differ by more than 2%.
-- **OracleSwap** swaps test tokens at that price from its own inventory and sends a 10 bps execution fee to the
+- **OracleSwap** swaps test tokens at that price from its own inventory and sends a 25 bps execution fee to the
   vault as `EXECUTION`. This is the router fee hook: every swap compounds solver inventory.
 - 0x was not used: its prices come from an offchain API (needs a key), whereas Uniswap/Chainlink are readable onchain.
 

@@ -180,7 +180,7 @@ contract OracleSwapTest {
         vault = new BushidoFeeVault(IERC20(address(usdc)), OWNER, 6_250e6, 25_000e6, 500e6);
         oracle = new FixedOracle();
         oracle.set(PX);
-        market = new OracleSwap(IERC20(address(weth)), oracle, vault, OWNER, 10); // 10 bps
+        market = new OracleSwap(IERC20(address(weth)), oracle, vault, OWNER, 25); // 25 bps
         vm.prank(OWNER);
         vault.setCollector(address(market), true);
 
@@ -197,32 +197,32 @@ contract OracleSwapTest {
     function test_sellWethAtOraclePriceAndFeeToVault() public {
         vm.prank(TRADER);
         uint256 out = market.sellWeth(1e18, 0);
-        // gross 1,717.000000; fee 10 bps = 1.717000; out = 1,715.283000
-        require(out == 1_715_283_000, "usdc out");
+        // gross 1,717.000000; fee 25 bps = 4.292500; out = 1,712.707500
+        require(out == 1_712_707_500, "usdc out");
         require(usdc.balanceOf(TRADER) == 10_000e6 + out, "trader paid");
-        require(vault.totalCollected(BushidoFeeVault.Source.EXECUTION) == 1_717_000, "fee to vault");
-        require(vault.inventory() == 1_201_900, "70% of fee retained");
+        require(vault.totalCollected(BushidoFeeVault.Source.EXECUTION) == 4_292_500, "fee to vault");
+        require(vault.inventory() == 3_004_750, "70% of fee retained");
         require(usdc.balanceOf(address(vault)) == vault.accounted(), "vault invariant");
     }
 
     function test_buyWethAtOraclePriceAndFeeToVault() public {
         vm.prank(TRADER);
         uint256 out = market.buyWeth(1_717e6, 0);
-        // fee 1.717 USDC; (1,717 - 1.717) / 1,717 = 0.999 WETH
-        require(out == 0.999e18, "weth out");
-        require(vault.totalCollected(BushidoFeeVault.Source.EXECUTION) == 1_717_000, "fee to vault");
+        // fee 4.2925 USDC; (1,717 - 4.2925) / 1,717 = 0.9975 WETH
+        require(out == 0.9975e18, "weth out");
+        require(vault.totalCollected(BushidoFeeVault.Source.EXECUTION) == 4_292_500, "fee to vault");
     }
 
     function test_slippageProtection() public {
         vm.prank(TRADER);
-        vm.expectRevert(abi.encodeWithSelector(OracleSwap.Slippage.selector, 1_715_283_000, 1_716e6));
+        vm.expectRevert(abi.encodeWithSelector(OracleSwap.Slippage.selector, 1_712_707_500, 1_716e6));
         market.sellWeth(1e18, 1_716e6);
     }
 
     function test_priceMoveFollowsOracle() public {
         oracle.set(2_000e6);
         (uint256 out,,) = market.quoteSellWeth(1e18);
-        require(out == 1_998e6, "repriced");
+        require(out == 1_995e6, "repriced");
     }
 
     function test_insufficientLiquidity() public {

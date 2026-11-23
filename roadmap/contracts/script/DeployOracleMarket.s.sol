@@ -33,7 +33,7 @@ contract DeployOracleMarket {
         oracle = new UniV3ChainlinkOracle(
             IUniswapV3PoolOracle(POOL_WETH_USDC_005), WETH, USDC, IChainlinkFeed(CHAINLINK_ETH_USD), 1800, 3600, 200
         );
-        market = new OracleSwap(IERC20(address(tweth)), oracle, vault, deployer, 10); // 10 bps execution fee
+        market = new OracleSwap(IERC20(address(tweth)), oracle, vault, deployer, 25); // 25 bps execution fee
         vault.setCollector(address(fwd), true);
         vault.setCollector(address(market), true);
 

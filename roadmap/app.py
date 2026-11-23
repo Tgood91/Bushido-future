@@ -351,7 +351,7 @@ with c1:
         "Simulated trade size (USDC)", min_value=1.0, max_value=5000.0, value=250.0, step=25.0
     )
     confidence = st.slider("Strategist confidence (%)", 0, 100, 85)
-    exec_fee_bps = st.slider("Execution fee (bps of notional)", 0, 50, 10)
+    exec_fee_bps = st.slider("Execution fee (bps of notional)", 0, 50, 25)
     spread_bps = st.slider("Self-solve spread captured (bps)", 0, 30, 5)
     cross_chain = st.checkbox("Cross-chain intent (needs BRIDGE)")
     run_sim = st.button("⚔️ RUN GUARDED EXECUTION")

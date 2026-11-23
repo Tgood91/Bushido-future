@@ -46,7 +46,7 @@ def test_over_cap_is_vetoed():
 def test_executed_trade_retains_fees_70_10_20():
     at = run_sim(250.0, 85)
     v = at.session_state.vault
-    total = 0.01 + 250.0 * 10 / 10_000  # x402 + 10 bps execution fee
+    total = 0.01 + 250.0 * 25 / 10_000  # x402 + 25 bps execution fee
     assert abs(v["inventory"] - total * 0.70) < 1e-9
     assert abs(v["reserve"] - total * 0.10) < 1e-9
     assert abs(v["ops"] - total * 0.20) < 1e-9

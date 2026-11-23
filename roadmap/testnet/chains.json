@@ -19,7 +19,7 @@
       "id": 11155111,
       "hex": "0xaa36a7",
       "name": "Sepolia",
-      "rpc": "https://ethereum-sepolia.publicnode.com",
+      "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
       "explorer": "https://sepolia.etherscan.io",
       "coin": "ETH",
       "hyperlane": {
