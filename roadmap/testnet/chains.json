@@ -185,5 +185,13 @@
       "hyperlane": null,
       "note": "Hyperlane registry lists a Mailbox here but no contract is deployed at it (checked 2026-11-23); vault-only for now."
     }
+  },
+  "faucet": {
+    "url": "https://solving-faucet.onrender.com",
+    "amount": "0.05",
+    "chains": [
+      "sepolia",
+      "base-sepolia"
+    ]
   }
 }

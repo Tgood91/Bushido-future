@@ -75,8 +75,32 @@ sends; reads, gas estimates and receipts go through the chain's public RPC. Choo
 - **M1–M3 (chains with a market):** deploy the test token, the live-price oracle and the market; then sell and buy
   at the live price. Every swap pays the 25 bps execution fee into the vault.
 
-The burner needs testnet gas on the chosen chain from that chain's faucet. To test the page against a fork, add
-`?rpc=http://127.0.0.1:8545` so reads hit the fork too.
+- **Networks:** every testnet in `chains.json` gets its own **➕ Add** button (chain ID, verified RPC, gas token,
+  explorer), plus **Add all networks**. The top button adds the selected network and switches the wallet to it.
+- **Faucet:** **💧 Get 0.05 ETH on Sepolia + Base Sepolia** sends free gas to the connected burner. A brand-new empty
+  burner can connect and tap it.
+
+To test the page against a fork, add `?rpc=http://127.0.0.1:8545` so reads hit the fork too, and
+`?faucet=http://127.0.0.1:8790` for a local faucet.
+
+## Faucet (`faucet/`)
+
+A small Node service (`solving-faucet` on Render) that sends **0.05 ETH on Ethereum Sepolia and on Base Sepolia**
+to the connected wallet in one tap.
+- **Who it serves:** only `/drip` calls from the burner page's origin (`ALLOWED_ORIGIN`).
+- **Limits:**
+  - one drip per address per chain and one per client IP per chain every 24 h;
+  - a daily cap per chain (`DAILY_CAP_ETH`, default 2 ETH = 40 drips);
+  - wallets already holding 0.5 ETH or more are refused.
+- **Restarts:** limits are kept in memory, so a restart clears them. The daily cap and the faucet balance still
+  bound what can be taken.
+- **Key:** set `FAUCET_PRIVATE_KEY` in the Render dashboard (Environment), never in the repo. Then fund that
+  wallet's address with ETH on both chains; `/status` shows the address and its balances.
+
+```bash
+cd roadmap/faucet && npm ci
+npm test          # two local anvil chains with a random wallet: drips, limits, cap, concurrency
+```
 
 ## Testnet solving (`solver/`)
 
@@ -131,4 +155,5 @@ choose **New → Blueprint**, pick this repo, and apply. The health check is `/_
 - **app tests**
 - **contracts:** unit tests, size check, and the live-price fork tests on Base mainnet and Fuji
 - **solver:** `npm ci`, script syntax, and the testnet-to-mainnet price check
+- **faucet:** `npm ci`, audit, and the local two-chain faucet test
 - **Docker build**

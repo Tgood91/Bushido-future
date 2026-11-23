@@ -12,6 +12,9 @@ Standing instructions for anyone (human or Claude) working in `roadmap/`.
   private key. Unattended bots (the solver) read `PRIVATE_KEY` from the environment on the owner's machine.
 - **Execution fee is 25 bps.** Fees go to `BushidoFeeVault` and split 70% inventory / 10% reserve / 20% ops.
 - **Cross-chain inventory moves over Hyperlane warp routes**; balances across chains are reconciled offchain.
+- **Faucet:** `faucet/` sends 0.05 ETH on Ethereum Sepolia and Base Sepolia per tap, origin-locked, rate-limited per
+  address and IP (24 h) with a daily cap. Its key lives only in Render's environment (`FAUCET_PRIVATE_KEY`).
+- **Every network the user gives or we add** gets an Add-to-wallet button on the burner page via `chains.json`.
 - **Solving pair today:** Base Sepolia (home, tUSDC collateral) ↔ Arbitrum Sepolia (synthetic). Avalanche Fuji
   is set up for the vault, x402 and the live-priced tAVAX market.
 

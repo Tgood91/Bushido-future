@@ -51,6 +51,13 @@
   </div>
 
   <div class="card">
+    <div class="label">Faucet · free testnet gas</div>
+    <button id="drip" disabled>💧 Get 0.05 ETH on Sepolia + Base Sepolia</button>
+    <div class="sub" id="faucetinfo" style="margin:6px 0 0">Connect your burner first; it doesn't need gas to connect.</div>
+    <div id="dripout"></div>
+  </div>
+
+  <div class="card">
     <div class="label">Steps</div>
     <button id="b1" disabled>1 · Deploy tUSDC + vault + forwarder</button>
     <button id="b2" disabled>2 · Mint 10,000 tUSDC to me</button>
@@ -95,7 +102,9 @@
 import * as F from './flow.js';
 // Chains come from chains.json (verified EVM testnets); Base Sepolia by default. ?chain=<key>, e.g. arbitrum-sepolia,
 // optimism-sepolia, monad-testnet; ?chain=local for anvil.
-const CHAINS = { ...(await (await fetch('./chains.json')).json()).chains,
+const REGISTRY = await (await fetch('./chains.json')).json();
+const FAUCET = { ...REGISTRY.faucet, url: new URLSearchParams(location.search).get('faucet') || REGISTRY.faucet?.url };
+const CHAINS = { ...REGISTRY.chains,
   local: { id: 31337, hex: '0x7a69', name: 'Local anvil', rpc: 'http://127.0.0.1:8545', explorer: 'http://127.0.0.1:8545', coin: 'ETH' } };
 const CHAIN = CHAINS[new URLSearchParams(location.search).get('chain')] || CHAINS['base-sepolia'];
 const $ = (id) => document.getElementById(id);
@@ -170,6 +179,37 @@ $('addall').onclick = async () => {
   }
   $('addall').textContent = `✓ ${n} of ${NETS.length} networks in your wallet`;
 };
+
+async function faucetStatus() {
+  try {
+    const s = await (await fetch(`${FAUCET.url}/status`, { cache: 'no-store' })).json();
+    if (!s.configured) return ($('faucetinfo').textContent = 'Faucet is being set up (not funded yet).');
+    const parts = FAUCET.chains.map((k) => `${s.chains[k].name}: ${Number(s.chains[k].balance).toFixed(3)} ETH left`);
+    $('faucetinfo').textContent = `${s.drip} ETH per chain, once per wallet every 24 h · ${parts.join(' · ')}`;
+  } catch { $('faucetinfo').textContent = 'Faucet is waking up or offline; try again in a minute.'; }
+}
+$('drip').onclick = async () => {
+  if (!me) return log('Connect your burner first.', 'bad');
+  $('drip').disabled = true;
+  $('drip').textContent = '💧 Sending…';
+  try {
+    const r = await fetch(`${FAUCET.url}/drip`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ address: me }) });
+    const { results = [], error } = await r.json();
+    if (error) throw new Error(error);
+    $('dripout').innerHTML = results.map((x) => x.status === 200
+      ? `<div class="ok">✓ ${x.amount} ETH on ${x.name}: <a target="_blank" rel="noopener" href="${x.explorer}" style="color:var(--gold)">${x.tx.slice(0, 12)}…</a></div>`
+      : `<div class="bad">${x.error}</div>`).join('');
+    for (const x of results) log(x.status === 200 ? `Faucet: ${x.amount} ETH sent on ${x.name} (${x.tx})` : `Faucet: ${x.error}`, x.status === 200 ? 'ok' : 'bad');
+    $('drip').textContent = results.some((x) => x.status === 200) ? '✓ Sent: check your balance in a few seconds' : '💧 Get 0.05 ETH on Sepolia + Base Sepolia';
+  } catch (e) {
+    log(`Faucet failed: ${e.message}`, 'bad');
+    $('drip').textContent = '💧 Get 0.05 ETH on Sepolia + Base Sepolia';
+  } finally {
+    $('drip').disabled = false;
+    faucetStatus();
+  }
+};
+faucetStatus();
 async function refresh() {
   if (!me) return;
   $('bal').textContent = Number(ethers.formatEther(await read.getBalance(me))).toFixed(5);
@@ -202,7 +242,7 @@ $('connect').onclick = async () => {
     await toTestnet();
     signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
     me = await signer.getAddress(); load();
-    $('who').textContent = me; $('connect').textContent = 'Connected';
+    $('who').textContent = me; $('connect').textContent = 'Connected'; $('drip').disabled = false;
     log(`Connected ${me} on ${CHAIN.name}`);
     if (Number(ethers.formatEther(await read.getBalance(me))) < 0.01) log(`This burner has under 0.01 ${CHAIN.coin} on ${CHAIN.name}: get some from a faucet first.`, 'bad');
     await refresh();

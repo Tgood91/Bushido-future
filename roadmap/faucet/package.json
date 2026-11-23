@@ -1,0 +1,11 @@
+{
+  "name": "bushido-solving-faucet",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node test-local.mjs"
+  },
+  "dependencies": { "ethers": "6.17.0" }
+}
