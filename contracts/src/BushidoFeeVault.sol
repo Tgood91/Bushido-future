@@ -47,6 +47,8 @@ contract BushidoFeeVault {
     address public owner;
     address public pendingOwner;
     address public solver;
+    /// @notice Cross-chain inventory bridge (e.g. CCIP InventoryBridge) allowed to move idle inventory out.
+    address public rebalancer;
     mapping(address => bool) public isCollector;
 
     uint16 public inventoryBps;
@@ -87,12 +89,15 @@ contract BushidoFeeVault {
     event RiskUpdated(uint256 maxFillSize, uint16 maxUtilizationBps, uint256 dailyFillCap, uint64 sameChainTimeout, uint64 crossChainTimeout);
     event ThresholdsUpdated(uint256 selfSolveThreshold, uint256 bridgeThreshold);
     event SolverUpdated(address solver);
+    event RebalancerUpdated(address rebalancer);
+    event InventorySent(address indexed rebalancer, uint256 amount, uint256 capitalAfter);
     event CollectorUpdated(address collector, bool allowed);
     event OwnershipTransferred(address indexed from, address indexed to);
 
     // ----------------------------------------------------------------- errors
     error NotOwner();
     error NotSolver();
+    error NotRebalancer();
     error NotCollector();
     error ZeroAmount();
     error ZeroAddress();
@@ -261,6 +266,28 @@ contract BushidoFeeVault {
         if (phase != Phase.ROUTING) _setPhase(Phase.ROUTING, "fill default");
     }
 
+    // ============================================================ rebalancing
+    /// @notice The rebalancer pulls idle inventory to ship it to this protocol's vault on another chain.
+    ///         Can't push utilisation over the cap; if capital falls below the current phase's threshold the
+    ///         vault demotes itself to the phase that capital still supports.
+    function sendInventory(uint256 amount) external {
+        if (msg.sender != rebalancer || rebalancer == address(0)) revert NotRebalancer();
+        if (amount == 0) revert ZeroAmount();
+        if (amount > inventory) revert InsufficientInventory();
+        uint256 capAfter = capital() - amount;
+        if (outstanding * BPS > capAfter * maxUtilizationBps) revert UtilizationExceeded();
+
+        inventory -= amount;
+        _push(rebalancer, amount);
+        emit InventorySent(rebalancer, amount, capAfter);
+
+        if (phase == Phase.BRIDGE && capAfter < bridgeThreshold) {
+            _setPhase(capAfter >= selfSolveThreshold ? Phase.SELF_SOLVE : Phase.ROUTING, "capital rebalanced away");
+        } else if (phase == Phase.SELF_SOLVE && capAfter < selfSolveThreshold) {
+            _setPhase(Phase.ROUTING, "capital rebalanced away");
+        }
+    }
+
     // ============================================================ withdrawals
     function withdrawOps(address to, uint256 amount) external onlyOwner {
         if (to == address(0)) revert ZeroAddress();
@@ -305,6 +332,11 @@ contract BushidoFeeVault {
         if (outstanding != 0) revert MustBeRoutingAndFlat();
         solver = _solver;
         emit SolverUpdated(_solver);
+    }
+
+    function setRebalancer(address _rebalancer) external onlyOwner {
+        rebalancer = _rebalancer;
+        emit RebalancerUpdated(_rebalancer);
     }
 
     function setCollector(address collector, bool allowed) external onlyOwner {
