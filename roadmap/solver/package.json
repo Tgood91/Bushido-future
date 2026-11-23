@@ -1,0 +1,13 @@
+{
+  "name": "bushido-solver",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "node deploy.mjs",
+    "solve": "node solver.mjs",
+    "relay:fork": "node relay.mjs",
+    "open": "node open-order.mjs",
+    "e2e:fork": "node e2e-fork.mjs"
+  },
+  "dependencies": { "ethers": "6.13.4" }
+}

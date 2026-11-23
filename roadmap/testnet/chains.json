@@ -1,0 +1,171 @@
+{
+  "_comment": "EVM testnets for Bushido vaults. Hyperlane data from hyperlane-xyz/hyperlane-registry, each verified live on 2026-11-23: RPC chainId matches and Mailbox.localDomain() == domain. Scroll Sepolia omitted (no public RPC answered). Chainlink feeds from Chainlink's reference-data-directory, verified live on 2026-11-23 (testnet ETH/USD within 0.02% of Base mainnet). Test-token markets price from these live feeds.",
+  "chains": {
+    "base-sepolia": {
+      "id": 84532,
+      "hex": "0x14a34",
+      "name": "Base Sepolia",
+      "rpc": "https://sepolia.base.org",
+      "explorer": "https://sepolia.basescan.org",
+      "coin": "ETH",
+      "hyperlane": {
+        "domain": 84532,
+        "mailbox": "0x6966b0E55883d49BFB24539356a2f8A673E02039",
+        "igp": "0x28B02B97a850872C4D33C3E024fab6499ad96564",
+        "registryKey": "basesepolia"
+      },
+      "chainlink": {
+        "ETH/USD": "0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1"
+      },
+      "market": {
+        "name": "Bushido Test ETH",
+        "symbol": "tETH",
+        "feed": "ETH/USD",
+        "maxStaleness": 3600
+      }
+    },
+    "sepolia": {
+      "id": 11155111,
+      "hex": "0xaa36a7",
+      "name": "Sepolia",
+      "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
+      "explorer": "https://sepolia.etherscan.io",
+      "coin": "ETH",
+      "hyperlane": {
+        "domain": 11155111,
+        "mailbox": "0xfFAEF09B3cd11D9b20d1a19bECca54EEC2884766",
+        "igp": "0x6f2756380FD49228ae25Aa7F2817993cB74Ecc56",
+        "registryKey": "sepolia"
+      }
+    },
+    "arbitrum-sepolia": {
+      "id": 421614,
+      "hex": "0x66eee",
+      "name": "Arbitrum Sepolia",
+      "rpc": "https://sepolia-rollup.arbitrum.io/rpc",
+      "explorer": "https://sepolia.arbiscan.io",
+      "coin": "ETH",
+      "hyperlane": {
+        "domain": 421614,
+        "mailbox": "0x598facE78a4302f11E3de0bee1894Da0b2Cb71F8",
+        "igp": "0xc756cFc1b7d0d4646589EDf10eD54b201237F5e8",
+        "registryKey": "arbitrumsepolia"
+      },
+      "chainlink": {
+        "ETH/USD": "0xd30e2101a97dcbAeBCBC04F14C3f624E67A35165",
+        "AVAX/USD": "0xe27498c9Cc8541033F265E63c8C29A97CfF9aC6D"
+      },
+      "market": {
+        "name": "Bushido Test ETH",
+        "symbol": "tETH",
+        "feed": "ETH/USD",
+        "maxStaleness": 3600
+      }
+    },
+    "optimism-sepolia": {
+      "id": 11155420,
+      "hex": "0xaa37dc",
+      "name": "Optimism Sepolia",
+      "rpc": "https://sepolia.optimism.io",
+      "explorer": "https://sepolia-optimistic.etherscan.io",
+      "coin": "ETH",
+      "hyperlane": {
+        "domain": 11155420,
+        "mailbox": "0x6966b0E55883d49BFB24539356a2f8A673E02039",
+        "igp": "0x28B02B97a850872C4D33C3E024fab6499ad96564",
+        "registryKey": "optimismsepolia"
+      }
+    },
+    "unichain-sepolia": {
+      "id": 1301,
+      "hex": "0x515",
+      "name": "Unichain Testnet",
+      "rpc": "https://sepolia.unichain.org",
+      "explorer": "https://unichain-sepolia.blockscout.com",
+      "coin": "ETH",
+      "hyperlane": {
+        "domain": 1301,
+        "mailbox": "0xDDcFEcF17586D08A5740B7D91735fcCE3dfe3eeD",
+        "igp": "0xa3AB7E6cE24E6293bD5320A53329Ef2f4DE73fCA",
+        "registryKey": "unichaintestnet"
+      }
+    },
+    "linea-sepolia": {
+      "id": 59141,
+      "hex": "0xe705",
+      "name": "Linea Sepolia",
+      "rpc": "https://rpc.sepolia.linea.build",
+      "explorer": "https://sepolia.lineascan.build",
+      "coin": "ETH",
+      "hyperlane": {
+        "domain": 59141,
+        "mailbox": "0x7323E06E40B0Fb82Dc26D309AaF14e49D266A6a7",
+        "igp": null,
+        "registryKey": "lineasepolia"
+      }
+    },
+    "polygon-amoy": {
+      "id": 80002,
+      "hex": "0x13882",
+      "name": "Polygon Amoy",
+      "rpc": "https://polygon-amoy-bor-rpc.publicnode.com",
+      "explorer": "https://amoy.polygonscan.com",
+      "coin": "POL",
+      "hyperlane": {
+        "domain": 80002,
+        "mailbox": "0x54148470292C24345fb828B003461a9444414517",
+        "igp": "0x6c13643B3927C57DB92c790E4E3E7Ee81e13f78C",
+        "registryKey": "polygonamoy"
+      }
+    },
+    "bsc-testnet": {
+      "id": 97,
+      "hex": "0x61",
+      "name": "BSC Testnet",
+      "rpc": "https://bsc-testnet.publicnode.com",
+      "explorer": "https://testnet.bscscan.com",
+      "coin": "BNB",
+      "hyperlane": {
+        "domain": 97,
+        "mailbox": "0xF9F6F5646F478d5ab4e20B0F910C92F1CCC9Cc6D",
+        "igp": "0x0dD20e410bdB95404f71c5a4e7Fa67B892A5f949",
+        "registryKey": "bsctestnet"
+      }
+    },
+    "avalanche-fuji": {
+      "id": 43113,
+      "hex": "0xa869",
+      "name": "Avalanche Fuji",
+      "rpc": "https://api.avax-test.network/ext/bc/C/rpc",
+      "explorer": "https://testnet.snowtrace.io",
+      "coin": "AVAX",
+      "hyperlane": {
+        "domain": 43113,
+        "mailbox": "0x5b6CFf85442B851A8e6eaBd2A4E4507B5135B3B0",
+        "igp": "0x6895d3916B94b386fAA6ec9276756e16dAe7480E",
+        "registryKey": "fuji"
+      },
+      "chainlink": {
+        "AVAX/USD": "0x5498BB86BC934c8D34FDA08E81D444153d0D06aD",
+        "ETH/USD": "0x86d67c3D38D2bCeE722E601025C25a575021c6EA",
+        "BTC/USD": "0x31CF013A08c6Ac228C94551d535d5BAfE19c602a"
+      },
+      "market": {
+        "name": "Bushido Test AVAX",
+        "symbol": "tAVAX",
+        "feed": "AVAX/USD",
+        "maxStaleness": 3600
+      }
+    },
+    "monad-testnet": {
+      "id": 10143,
+      "hex": "0x279f",
+      "name": "Monad testnet",
+      "rpc": "https://testnet-rpc.monad.xyz",
+      "explorer": "https://testnet.monadexplorer.com",
+      "coin": "MON",
+      "hyperlane": null,
+      "note": "Hyperlane registry lists a Mailbox here but no contract is deployed at it (checked 2026-11-23); vault-only for now."
+    }
+  }
+}

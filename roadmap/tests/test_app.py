@@ -41,3 +41,37 @@ def test_over_cap_is_vetoed():
     at = run_sim(900.0, 90)
     assert any("exceeds 500 USDC cap" in line for line in at.session_state.logs)
     assert not any("[SOLVER]" in line for line in at.session_state.logs)
+
+
+def test_executed_trade_retains_fees_70_10_20():
+    at = run_sim(250.0, 85)
+    v = at.session_state.vault
+    total = 0.01 + 250.0 * 25 / 10_000  # x402 + 25 bps execution fee
+    assert abs(v["inventory"] - total * 0.70) < 1e-9
+    assert abs(v["reserve"] - total * 0.10) < 1e-9
+    assert abs(v["ops"] - total * 0.20) < 1e-9
+    assert v["phase"] == 0
+
+
+def test_seeding_graduates_and_enables_self_fill():
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    for _ in range(7):
+        next(b for b in at.button if "SEED" in b.label).click()
+        at.run()
+    assert at.session_state.vault["phase"] == 1  # 7,000 >= 6,250
+    next(b for b in at.button if "RUN GUARDED" in b.label).click()
+    at.run()
+    assert any("Self-filled" in line for line in at.session_state.logs)
+    assert at.session_state.vault["collected"]["SOLVER_SPREAD"] > 0
+
+
+def test_cross_chain_routes_externally_before_bridge():
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    for _ in range(7):
+        next(b for b in at.button if "SEED" in b.label).click()
+        at.run()
+    at.checkbox[0].check()
+    next(b for b in at.button if "RUN GUARDED" in b.label).click()
+    at.run()
+    assert not any("Self-filled" in line for line in at.session_state.logs)
+    assert any("routed to external solver" in line for line in at.session_state.logs)

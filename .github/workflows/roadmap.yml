@@ -2,12 +2,13 @@ name: roadmap
 
 on:
   push:
+    branches: [main]
     paths: ["roadmap/**", ".github/workflows/roadmap.yml"]
   pull_request:
     paths: ["roadmap/**", ".github/workflows/roadmap.yml"]
 
 jobs:
-  test:
+  app:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -23,9 +24,42 @@ jobs:
       - run: python -m py_compile app.py
       - run: pytest -q
 
+  contracts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: roadmap/contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: forge build --sizes --skip test --skip script  # size limit applies to deployable contracts, not scripts
+      - run: forge test -vv
+      - name: Fork test against real Base prices
+        env:
+          BASE_RPC_URL: https://mainnet.base.org
+          FUJI_RPC_URL: https://api.avax-test.network/ext/bc/C/rpc
+        run: forge test --match-path 'test/fork/*' -vv
+
+  solver:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: roadmap/solver
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: for f in *.mjs; do node --check "$f"; done
+
   docker:
     runs-on: ubuntu-latest
-    needs: test
+    needs: app
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t bushido-roadmap roadmap

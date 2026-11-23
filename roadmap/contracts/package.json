@@ -1,0 +1,10 @@
+{
+  "name": "bushido-contracts",
+  "private": true,
+  "devDependencies": {
+    "@hyperlane-xyz/core": "12.3.0",
+    "@openzeppelin/contracts": "4.9.6",
+    "@openzeppelin/contracts-upgradeable": "4.9.6",
+    "solady": "0.1.26"
+  }
+}
