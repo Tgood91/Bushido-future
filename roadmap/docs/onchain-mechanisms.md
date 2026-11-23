@@ -73,6 +73,40 @@ DEPLOYER=$D forge script script/DeployOracleMarket.s.sol:DeployOracleMarket \
 ```
 Fork test (real state, no deploy): `BASE_RPC_URL=https://mainnet.base.org forge test --match-path 'test/fork/*' -vvvv`.
 
+## Cross-chain inventory: `WarpInventoryBridge` (Hyperlane, open source)
+One vault per EVM chain. Inventory moves between them over a **Hyperlane warp route**: open source (Apache-2.0)
+and permissionless, so we deploy our own routes for our own test tokens on any EVM chain.
+- Home chain (Base Sepolia) holds tUSDC as collateral in a `HypERC20Collateral` route; every other chain has a
+  synthetic tUSDC `HypERC20`, and that synthetic is the vault token on that chain.
+- `rebalance(domain, amount)` (owner or keeper) → `vault.sendInventory(amount)` → `transferRemote` straight to the
+  **destination vault**. A relayer delivers; anyone then calls `vault.absorbSurplus()` to credit it to inventory.
+  No callback is involved, so the same vault works with any bridge that delivers tokens to an address.
+- Vault guardrails: only the registered rebalancer can pull, only idle inventory, utilisation cap holds, and the
+  source vault demotes itself if capital drops below its phase threshold. Routes that charge token fees are refused;
+  the relay fee is paid in native gas from the bridge's balance.
+- Cross-chain balances are reconciled **offchain** from `InventoryShipped` and `SurplusAbsorbed` events.
+
+Tests use Hyperlane's real warp-route contracts with its `MockMailbox`, including the in-flight state
+(`test/WarpInventoryBridge.t.sol`). Deploying the routes on testnets is done with the open-source Hyperlane CLI.
+
+## EVM testnets (`testnet/chains.json`)
+Verified live on 2026-11-23: each RPC returns the chain ID and each Hyperlane Mailbox reports the matching domain.
+
+| Chain | Chain ID / domain | Hyperlane |
+|---|---|---|
+| Base Sepolia (home) | 84532 | yes |
+| Sepolia | 11155111 | yes |
+| Arbitrum Sepolia | 421614 | yes |
+| OP Sepolia | 11155420 | yes |
+| Unichain Sepolia | 1301 | yes |
+| Linea Sepolia | 59141 | yes (no gas paymaster listed) |
+| Polygon Amoy | 80002 | yes |
+| BSC testnet | 97 | yes |
+| Avalanche Fuji | 43113 | yes |
+| Monad testnet | 10143 | **no**: registry Mailbox address has no contract; vault-only |
+
+Scroll Sepolia is omitted because no public RPC answered. The burner-wallet page builds its network list from this file.
+
 ## Testnet run from the burner wallet
 `testnet/` is a static page you open **inside the wallet app that holds your burner** (same pattern as the BTG
 governance test). Your wallet only signs and sends; reads, gas estimates and receipts go through the public RPC.
@@ -89,5 +123,5 @@ Local dry run: `anvil` in one terminal, then `cd testnet && npm i && npm run dry
 4. **Bridge settlement verification** — in `BRIDGE` phase the vault currently trusts the solver to repay; loss is bounded
    only by caps, timeouts and the reserve. Next: repay against a verified origin-chain fill proof (e.g. NEAR Intents
    settlement / messaging-layer attestation) instead of solver honesty.
-5. **Cross-chain inventory tracking (offchain)**: one vault per chain; balances across chains are tracked offchain for now. An onchain bridge (CCIP) was dropped: test tokens can't cross chains, NEAR isn't a CCIP network, and no mainnet USDC lane was confirmed.
+5. **Deploy the warp routes**: Hyperlane CLI `warp deploy` with tUSDC collateral on Base Sepolia and synthetics on the other chains, then a vault + `WarpInventoryBridge` per chain. Monad testnet needs Hyperlane core deployed first (permissionless) or another bridge. An offchain reconciler for shipped vs absorbed inventory.
 6. **Audit** before any mainnet funds. This contract is unaudited.

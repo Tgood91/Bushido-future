@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 /// @dev Minimal Foundry cheatcode interface (no forge-std dependency).
 interface Vm {
     function warp(uint256) external;
+    function deal(address, uint256) external;
     function prank(address) external;
     function startPrank(address) external;
     function stopPrank() external;

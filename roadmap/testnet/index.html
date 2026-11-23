@@ -28,6 +28,7 @@
 <body>
 <main>
   <h1>⛩️ BUSHIDO VAULT · <span id="netname">Base Sepolia</span></h1>
+  <div class="sub" id="chainlist"></div>
   <div class="sub">Testnet only. Deploys a test token (tUSDC), BushidoFeeVault and X402Forwarder from your burner, then runs an
     x402 payment → flush → 70/10/20 split → seed → graduate. Open this page in the browser inside the wallet app that holds your burner.</div>
 
@@ -68,15 +69,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
 <script type="module">
 import * as F from './flow.js';
-// Base Sepolia by default; ?chain=monad-testnet for Monad testnet, ?chain=local for anvil.
-const CHAINS = {
-  'base-sepolia': { id: 84532, hex: '0x14a34', name: 'Base Sepolia', rpc: 'https://sepolia.base.org', explorer: 'https://sepolia.basescan.org', coin: 'ETH' },
-  local: { id: 31337, hex: '0x7a69', name: 'Local anvil', rpc: 'http://127.0.0.1:8545', explorer: 'http://127.0.0.1:8545', coin: 'ETH' },
-  'monad-testnet': { id: 10143, hex: '0x279f', name: 'Monad testnet', rpc: 'https://testnet-rpc.monad.xyz', explorer: 'https://testnet.monadexplorer.com', coin: 'MON' },
-};
+// Chains come from chains.json (verified EVM testnets); Base Sepolia by default. ?chain=<key>, e.g. arbitrum-sepolia,
+// optimism-sepolia, monad-testnet; ?chain=local for anvil.
+const CHAINS = { ...(await (await fetch('./chains.json')).json()).chains,
+  local: { id: 31337, hex: '0x7a69', name: 'Local anvil', rpc: 'http://127.0.0.1:8545', explorer: 'http://127.0.0.1:8545', coin: 'ETH' } };
 const CHAIN = CHAINS[new URLSearchParams(location.search).get('chain')] || CHAINS['base-sepolia'];
 const $ = (id) => document.getElementById(id);
 $('netname').textContent = CHAIN.name;
+$('chainlist').innerHTML = 'Network: ' + Object.entries(CHAINS).filter(([k]) => k !== 'local').map(([k, c]) => c === CHAIN ? `<b>${c.name}</b>` : `<a href="?chain=${k}" style="color:var(--gold)">${c.name}</a>`).join(' · ');
 $('balname').textContent = `${CHAIN.name} ${CHAIN.coin}`;
 const read = new ethers.JsonRpcProvider(CHAIN.rpc, CHAIN.id, { staticNetwork: true });
 F.setRead(read);
