@@ -118,8 +118,8 @@ contract BushidoFeeVaultTest {
         _invariant();
     }
 
-    function testFuzz_splitConservesFunds(uint96 amount) public {
-        vm.assume(amount > 0 && amount < 1_000_000 * USDC);
+    function testFuzz_splitConservesFunds(uint96 seed) public {
+        uint256 amount = 1 + (uint256(seed) % (1_000_000 * USDC - 1)); // bound, don't reject
         vm.prank(COLLECTOR);
         vault.collectFee(BushidoFeeVault.Source.EXECUTION, amount);
         _eq(vault.inventory() + vault.reserve() + vault.ops(), amount, "conservation");
