@@ -30,3 +30,6 @@ Chainlink feed has the right `description()` and a recent `updatedAt`.
 - `BushidoFeeVault.absorbSurplus` stays owner/solver/rebalancer-only, so nobody can absorb a fill repayment before
   `settleFillFromBalance` uses it.
 - When a check fails, make one fix attempt; if it still fails, stop and report.
+- Keep `npm audit` at 0. Pin exact versions (ethers is 6.17.0 in `solver/`, `testnet/` and the page's CDN script;
+  keep all three in step). `contracts/.npmrc` sets `legacy-peer-deps=true`: Hyperlane's peer deps (ethers v5 tooling,
+  elliptic) are never used to compile its Solidity and only add vulnerable packages.
