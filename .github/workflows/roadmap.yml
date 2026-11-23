@@ -36,7 +36,7 @@ jobs:
         with:
           node-version: "22"
       - run: npm ci
-      - run: forge build --sizes
+      - run: forge build --sizes --skip test --skip script  # size limit applies to deployable contracts, not scripts
       - run: forge test -vv
       - name: Fork test against real Base prices
         env:
