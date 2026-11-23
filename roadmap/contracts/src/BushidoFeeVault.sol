@@ -229,13 +229,25 @@ contract BushidoFeeVault {
     /// @notice Solver repays principal plus spread. Spread is re-split like any fee (compounding).
     ///         A shortfall is covered from the reserve first.
     function settleFill(bytes32 id, uint256 returned) external onlySolver {
+        if (returned > 0) _pull(msg.sender, returned);
+        _settle(id, returned);
+    }
+
+    /// @notice Settle a fill with repayment that already arrived in the vault without being accounted
+    ///         (e.g. an IntentSettler repaying a cross-chain fill over a warp route). `returned` must not
+    ///         exceed the vault's unaccounted balance, so accounted inventory/reserve/ops can't be reused.
+    function settleFillFromBalance(bytes32 id, uint256 returned) external onlySolver {
+        uint256 unaccounted = usdc.balanceOf(address(this)) - (inventory + reserve + ops);
+        if (returned > unaccounted) revert InsufficientBucket();
+        _settle(id, returned);
+    }
+
+    function _settle(bytes32 id, uint256 returned) internal {
         Fill storage f = fills[id];
         if (!f.open) revert FillNotOpen();
         uint256 drawn = f.amount;
         f.open = false;
         outstanding -= drawn;
-
-        if (returned > 0) _pull(msg.sender, returned);
 
         if (returned >= drawn) {
             inventory += drawn;
@@ -291,8 +303,10 @@ contract BushidoFeeVault {
 
     /// @notice Credit tokens that arrived without going through collectFee/seedInventory/settleFill
     ///         (e.g. a bridge such as a Hyperlane warp route delivering rebalanced inventory) to inventory.
-    ///         Permissionless: unaccounted tokens can only ever become solver inventory.
+    ///         Restricted to owner/solver/rebalancer: otherwise anyone could absorb a fill repayment that
+    ///         landed here before the solver settles it with settleFillFromBalance, forcing a default.
     function absorbSurplus() external returns (uint256 surplus) {
+        if (msg.sender != owner && msg.sender != solver && msg.sender != rebalancer) revert NotOwner();
         uint256 bal = usdc.balanceOf(address(this));
         uint256 acc = inventory + reserve + ops;
         if (bal <= acc) return 0;

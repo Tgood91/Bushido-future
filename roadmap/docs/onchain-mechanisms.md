@@ -107,6 +107,40 @@ Verified live on 2026-11-23: each RPC returns the chain ID and each Hyperlane Ma
 
 Scroll Sepolia is omitted because no public RPC answered. The burner-wallet page builds its network list from this file.
 
+## Testnet solving: `IntentSettler` + solver bot (Base Sepolia ↔ Arbitrum Sepolia)
+Cross-chain transfer intents, solved from vault inventory and settled over Hyperlane:
+1. **Open (origin):** the user deposits `amountOut + 25 bps` and names a recipient on the destination chain.
+2. **Fill (destination):** the solver draws `amountOut` from the destination vault (`drawForFill`, BRIDGE phase),
+   pays the recipient through `IntentSettler.fill`, which sends a Hyperlane message to the origin settler.
+3. **Confirm (origin):** `handle` accepts it only from the enrolled peer settler on that chain and only if the
+   order hash matches what the user opened (recipient, amounts, deadline). A tampered fill is ignored.
+4. **Repay (origin, permissionless):** the deposit goes over the warp route to the destination vault.
+5. **Settle (destination):** the solver calls `vault.settleFillFromBalance`; the 25 bps is profit, split 70/10/20.
+
+User safety: unfilled orders refund after deadline + 1 hour. `absorbSurplus` is owner/solver/rebalancer only, so
+nobody can absorb a repayment before the solver settles with it.
+
+`roadmap/solver/`: `deploy.mjs` (both chains, wiring, funding), `solver.mjs` (the bot), `open-order.mjs`
+(open an order; `bootstrap` credits bridged inventory and graduates the vaults), `relay.mjs` and `e2e-fork.mjs`
+(local forks only). Testnet thresholds: SELF_SOLVE 1,000 / BRIDGE 2,000 / max fill 500 tUSDC.
+
+Fork end-to-end run (passes): forks of both testnets with their real Hyperlane Mailboxes and gas paymasters,
+a test ISM and a local relay. A 100 tUSDC order Base Sepolia → Arbitrum Sepolia is filled, confirmed, repaid and
+settled; the recipient gets 100 tUSDC and the Arbitrum vault keeps +0.175 inventory / +0.025 reserve / +0.05 ops.
+```bash
+anvil --fork-url https://sepolia.base.org --port 8545
+anvil --fork-url https://sepolia-rollup.arbitrum.io/rpc --port 8546
+cd roadmap/solver && npm ci
+ANVIL=1 BASE_RPC=http://127.0.0.1:8545 ARB_RPC=http://127.0.0.1:8546 node e2e-fork.mjs
+```
+Live testnets (needs ETH on both chains; the key stays on your machine, never in the repo):
+```bash
+PRIVATE_KEY=0x… node deploy.mjs deployments.testnet.json   # then wait for Hyperlane to deliver the 6,000 tUSDC
+PRIVATE_KEY=0x… node open-order.mjs deployments.testnet.json bootstrap
+PRIVATE_KEY=0x… node solver.mjs deployments.testnet.json     # leave running
+PRIVATE_KEY=0x… node open-order.mjs deployments.testnet.json base-sepolia arbitrum-sepolia 100
+```
+
 ## Testnet run from the burner wallet
 `testnet/` is a static page you open **inside the wallet app that holds your burner** (same pattern as the BTG
 governance test). Your wallet only signs and sends; reads, gas estimates and receipts go through the public RPC.

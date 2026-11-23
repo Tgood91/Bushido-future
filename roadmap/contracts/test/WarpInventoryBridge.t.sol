@@ -79,13 +79,17 @@ contract WarpInventoryBridgeTest {
         // in flight: left Base, not yet on Arbitrum
         _eq(vaultBase.inventory(), 6_000 * U, "base down");
         _eq(usdc.balanceOf(address(collateral)), 4_000 * U, "locked as collateral");
+        vm.prank(OWNER);
         _eq(vaultArb.absorbSurplus(), 0, "nothing arrived yet");
 
         mbArb.processNextInboundMessage(); // relayer delivers
         _eq(synthetic.balanceOf(address(vaultArb)), 4_000 * U, "synthetic minted to the vault");
         _eq(vaultArb.inventory(), 0, "not yet credited");
         vm.prank(STRANGER);
-        _eq(vaultArb.absorbSurplus(), 4_000 * U, "anyone can credit");
+        vm.expectRevert(BushidoFeeVault.NotOwner.selector);
+        vaultArb.absorbSurplus(); // strangers can't front-run a pending fill repayment
+        vm.prank(OWNER);
+        _eq(vaultArb.absorbSurplus(), 4_000 * U, "owner credits arrival");
         _eq(vaultArb.inventory(), 4_000 * U, "arb inventory");
         _eq(bridgeBase.shippedTo(ARB_SEPOLIA), 4_000 * U, "tracked");
         _eq(synthetic.balanceOf(address(vaultArb)), vaultArb.accounted(), "arb invariant");
@@ -96,12 +100,14 @@ contract WarpInventoryBridgeTest {
         vm.prank(KEEPER);
         bridgeBase.rebalance(ARB_SEPOLIA, 3_000 * U);
         mbArb.processNextInboundMessage();
+        vm.prank(OWNER);
         vaultArb.absorbSurplus();
 
         vm.prank(OWNER);
         bridgeArb.rebalance(BASE_SEPOLIA, 1_000 * U); // synthetic burned on Arbitrum
         _eq(synthetic.totalSupply(), 2_000 * U, "burned");
         mbBase.processNextInboundMessage(); // collateral released on Base
+        vm.prank(OWNER);
         vaultBase.absorbSurplus();
 
         _eq(vaultBase.inventory(), 8_000 * U, "base after round trip");
@@ -113,16 +119,19 @@ contract WarpInventoryBridgeTest {
         vm.prank(OWNER);
         bridgeBase.rebalance(ARB_SEPOLIA, 6_250 * U);
         mbArb.processNextInboundMessage();
+        vm.prank(OWNER);
         vaultArb.absorbSurplus();
         vaultArb.advancePhase();
         _eq(uint8(vaultArb.phase()), 1, "SELF_SOLVE on bridged inventory");
     }
 
     function test_absorbIsIdempotentAndIgnoresAccountedFunds() public {
+        vm.startPrank(OWNER);
         _eq(vaultBase.absorbSurplus(), 0, "no surplus when fully accounted");
         usdc.mint(address(vaultBase), 5 * U); // a stray transfer
         _eq(vaultBase.absorbSurplus(), 5 * U, "stray tokens become inventory");
         _eq(vaultBase.absorbSurplus(), 0, "second call credits nothing");
+        vm.stopPrank();
         _eq(vaultBase.inventory(), 10_005 * U, "inventory");
     }
 
