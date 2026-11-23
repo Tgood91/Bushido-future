@@ -22,6 +22,7 @@
   #addrs a { color:var(--gold); word-break:break-all; }
   #who { word-break:break-all; }
   #log { background:#07080A; border:1px solid var(--line); border-radius:6px; padding:10px; font-size:12px; max-height:320px; overflow:auto; }
+  .addnet { text-align:center; border-color:var(--gold); margin-bottom:12px; }
   .ok { color:var(--ok); } .bad { color:var(--bad); }
 </style>
 </head>
@@ -29,6 +30,7 @@
 <main>
   <h1>⛩️ BUSHIDO VAULT · <span id="netname">Base Sepolia</span></h1>
   <div class="sub" id="chainlist"></div>
+  <button id="addnet" class="addnet">➕ Add <span id="addname">this network</span> to my wallet</button>
   <div class="sub">Testnet only. Deploys a test token (tUSDC), BushidoFeeVault and X402Forwarder from your burner, then runs an
     x402 payment → flush → 70/10/20 split → seed → graduate. Open this page in the browser inside the wallet app that holds your burner.</div>
 
@@ -103,15 +105,33 @@ function showAddrs() {
   const names = { usdc: 'TestUSDC (tUSDC)', vault: 'BushidoFeeVault', fwd: 'X402Forwarder (x402 payTo)', asset: `TestToken (${CHAIN.market?.symbol})`, oracle: 'ChainlinkFeedOracle (live price)', market: 'OracleSwap (25 bps)' };
   $('addrs').innerHTML = Object.entries(names).filter(([k]) => st[k]).map(([k, n]) => `<div>${n}: <a target="_blank" rel="noopener" href="${CHAIN.explorer}/address/${st[k]}">${st[k]}</a></div>`).join('') || 'Nothing deployed yet.';
 }
+const addParams = () => ({ chainId: CHAIN.hex, chainName: CHAIN.name, rpcUrls: [CHAIN.rpc], blockExplorerUrls: [CHAIN.explorer],
+  nativeCurrency: { name: CHAIN.coin, symbol: CHAIN.coin, decimals: 18 } });
+async function addAndSwitch() {
+  // Some wallets refuse wallet_addEthereumChain for networks they ship with (e.g. Sepolia): then just switch.
+  try { await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [addParams()] }); }
+  catch (e) { if (e.code === 4001) throw e; }
+  await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN.hex }] });
+}
 async function toTestnet() {
   const cur = await window.ethereum.request({ method: 'eth_chainId' });
   if (parseInt(cur, 16) === CHAIN.id) return;
   try { await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CHAIN.hex }] }); }
   catch (e) {
     if (e.code !== 4902 && !/unrecognized|not added|4902/i.test(String(e.message))) throw e;
-    await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [{ chainId: CHAIN.hex, chainName: CHAIN.name, rpcUrls: [CHAIN.rpc], blockExplorerUrls: [CHAIN.explorer], nativeCurrency: { name: CHAIN.coin, symbol: CHAIN.coin, decimals: 18 } }] });
+    await window.ethereum.request({ method: 'wallet_addEthereumChain', params: [addParams()] });
   }
 }
+$('addname').textContent = CHAIN.name;
+$('addnet').hidden = !CHAIN.hex || CHAIN === CHAINS.local;
+$('addnet').onclick = async () => {
+  if (!window.ethereum) return log('No wallet found. Open this page in the browser inside the wallet app that holds your burner.', 'bad');
+  try {
+    await addAndSwitch();
+    $('addnet').textContent = `✓ ${CHAIN.name} added — wallet switched to it`;
+    log(`${CHAIN.name} (chain ${CHAIN.id}) added to your wallet and selected`, 'ok');
+  } catch (e) { log(`Adding ${CHAIN.name} failed: ${e.message}`, 'bad'); }
+};
 async function refresh() {
   if (!me) return;
   $('bal').textContent = Number(ethers.formatEther(await read.getBalance(me))).toFixed(5);
