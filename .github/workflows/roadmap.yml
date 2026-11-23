@@ -56,6 +56,8 @@ jobs:
           node-version: "22"
       - run: npm ci
       - run: for f in *.mjs; do node --check "$f"; done
+      - name: Testnet prices tied to mainnet (live Chainlink feeds)
+        run: node price-check.mjs
 
   docker:
     runs-on: ubuntu-latest
