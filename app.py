@@ -309,12 +309,41 @@ with r3:
         unsafe_allow_html=True,
     )
 
+# --- FEE VAULT MODEL (mirrors contracts/src/BushidoFeeVault.sol) ---
+MAX_SPEND_USDC = 500.0          # guardrail cap == vault maxFillSize
+X402_FEE_USDC = 0.01
+SPLIT = {"inventory": 0.70, "reserve": 0.10, "ops": 0.20}
+SELF_SOLVE_THRESHOLD = 6_250.0  # 500 max fill x 10 concurrent fills / 80% utilisation
+BRIDGE_THRESHOLD = 25_000.0
+PHASES = ["ROUTING", "SELF_SOLVE", "BRIDGE"]
+
+if "vault" not in st.session_state:
+    st.session_state.vault = {
+        "inventory": 0.0, "reserve": 0.0, "ops": 0.0, "phase": 0,
+        "collected": {"X402": 0.0, "EXECUTION": 0.0, "SOLVER_SPREAD": 0.0},
+    }
+
+
+def collect_fee(source: str, amount: float) -> None:
+    v = st.session_state.vault
+    inv, res = amount * SPLIT["inventory"], amount * SPLIT["reserve"]
+    v["inventory"] += inv
+    v["reserve"] += res
+    v["ops"] += amount - inv - res
+    v["collected"][source] += amount
+
+
+def try_advance(logs: list, ts: str) -> None:
+    v = st.session_state.vault
+    thresholds = [SELF_SOLVE_THRESHOLD, BRIDGE_THRESHOLD]
+    while v["phase"] < 2 and v["inventory"] >= thresholds[v["phase"]]:
+        v["phase"] += 1
+        logs.append(f"[{ts}] [VAULT] ⬆ Graduated to {PHASES[v['phase']]} (capital ≥ {thresholds[v['phase'] - 1]:,.0f}).")
+
+
 # --- LIVE GUARDRAIL CONSOLE (SIMULATED) ---
 st.markdown("---")
 st.markdown("#### 🖥️ GUARDRAIL CONSOLE")
-
-MAX_SPEND_USDC = 500.0
-X402_FEE_USDC = 0.01
 
 c1, c2 = st.columns([1, 2])
 with c1:
@@ -322,16 +351,24 @@ with c1:
         "Simulated trade size (USDC)", min_value=1.0, max_value=5000.0, value=250.0, step=25.0
     )
     confidence = st.slider("Strategist confidence (%)", 0, 100, 85)
+    exec_fee_bps = st.slider("Execution fee (bps of notional)", 0, 50, 10)
+    spread_bps = st.slider("Self-solve spread captured (bps)", 0, 30, 5)
+    cross_chain = st.checkbox("Cross-chain intent (needs BRIDGE)")
     run_sim = st.button("⚔️ RUN GUARDED EXECUTION")
-    if st.button("🧹 CLEAR CONSOLE"):
+    b1, b2 = st.columns(2)
+    if b1.button("🌱 SEED 1,000"):
+        st.session_state.vault["inventory"] += 1_000.0
+        try_advance(st.session_state.logs, time.strftime("%H:%M:%S"))
+    if b2.button("🧹 CLEAR"):
         st.session_state.logs = st.session_state.logs[:2]
 
 if run_sim:
     ts = time.strftime("%H:%M:%S")
     logs = st.session_state.logs
-    logs.append(f"[{ts}] [X402] Paid {X402_FEE_USDC:.2f} USDC job fee (HTTP 402 cleared).")
+    v = st.session_state.vault
+    logs.append(f"[{ts}] [X402] Paid {X402_FEE_USDC:.2f} USDC job fee → vault.")
     st.session_state.wallet_balance -= X402_FEE_USDC
-    logs.append(f"[{ts}] [ORACLE] Liquidity + volatility telemetry ingested.")
+    collect_fee("X402", X402_FEE_USDC)
     logs.append(f"[{ts}] [STRATEGIST] Thesis confidence: {confidence}%.")
 
     if confidence < 80:
@@ -342,13 +379,62 @@ if run_sim:
         )
         st.session_state.virtue_score = min(1000, st.session_state.virtue_score + 2)
     else:
-        logs.append(f"[{ts}] [ROUTER] Routed via Base L2 (whitelisted router).")
-        logs.append(f"[{ts}] [SOLVER] Executed {trade_amount:,.2f} USDC • finality < 1s.")
+        fee = trade_amount * exec_fee_bps / 10_000
+        collect_fee("EXECUTION", fee)
+        required = 2 if cross_chain else 1
+        if v["phase"] >= required:
+            spread = trade_amount * spread_bps / 10_000
+            collect_fee("SOLVER_SPREAD", spread)
+            logs.append(f"[{ts}] [SOLVER] Self-filled {trade_amount:,.2f} USDC from vault inventory (+{spread:.4f} spread).")
+        else:
+            logs.append(f"[{ts}] [ROUTER] {PHASES[v['phase']]}: routed to external solver.")
+            logs.append(f"[{ts}] [SOLVER] Executed {trade_amount:,.2f} USDC • finality < 1s.")
+        logs.append(f"[{ts}] [VAULT] Execution fee {fee:.4f} USDC retained 70/10/20.")
         st.session_state.virtue_score = min(1000, st.session_state.virtue_score + 5)
+    try_advance(logs, ts)
     st.rerun()
 
 with c2:
     log_html = "<br>".join(st.session_state.logs[-12:])
     st.markdown(f'<div class="console-box">{log_html}</div>', unsafe_allow_html=True)
+
+# --- FEE RETENTION → SOLVER GRADUATION ---
+st.markdown("---")
+st.markdown("#### 🏯 FEE RETENTION → OWN SOLVER → OWN BRIDGE")
+v = st.session_state.vault
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("Phase", PHASES[v["phase"]])
+m2.metric("Solver inventory", f"{v['inventory']:,.2f} USDC")
+m3.metric("Loss reserve", f"{v['reserve']:,.2f} USDC")
+m4.metric("Ops (withdrawable)", f"{v['ops']:,.2f} USDC")
+st.progress(min(1.0, v["inventory"] / SELF_SOLVE_THRESHOLD), text=f"SELF_SOLVE gate: {v['inventory']:,.2f} / {SELF_SOLVE_THRESHOLD:,.0f}")
+st.progress(min(1.0, v["inventory"] / BRIDGE_THRESHOLD), text=f"BRIDGE gate: {v['inventory']:,.2f} / {BRIDGE_THRESHOLD:,.0f}")
+
+with st.expander("📈 Projection: how long until I can solve my own bridge?", expanded=True):
+    p1, p2, p3 = st.columns(3)
+    trades_per_day = p1.number_input("Executed trades / day", 1, 100_000, 200)
+    avg_size = p2.number_input("Avg trade size (USDC)", 1.0, MAX_SPEND_USDC, 250.0)
+    seed = p3.number_input("Founder seed (USDC)", 0.0, 1_000_000.0, 0.0, step=500.0)
+
+    def days_to(target: float, phase_spread: bool) -> float:
+        per_trade = X402_FEE_USDC + avg_size * exec_fee_bps / 10_000
+        if phase_spread:
+            per_trade += avg_size * spread_bps / 10_000
+        daily = trades_per_day * per_trade * SPLIT["inventory"]
+        return float("inf") if daily <= 0 else max(0.0, (target - seed) / daily)
+
+    d1 = days_to(SELF_SOLVE_THRESHOLD, False)
+    # after SELF_SOLVE, spread also compounds into inventory
+    start2 = max(seed, SELF_SOLVE_THRESHOLD)
+    d2 = d1 + days_to(BRIDGE_THRESHOLD - start2 + seed, True)
+    daily_notional = trades_per_day * avg_size
+    q1, q2, q3 = st.columns(3)
+    q1.metric("Daily notional", f"${daily_notional:,.0f}")
+    q2.metric("Days → SELF_SOLVE", "∞" if d1 == float("inf") else f"{d1:,.0f}")
+    q3.metric("Days → BRIDGE", "∞" if d2 == float("inf") else f"{d2:,.0f}")
+    st.caption(
+        "Retained per trade = 70% × (0.01 x402 + execution bps × size [+ spread bps × size once self-solving]). "
+        "x402 fees alone are negligible — execution bps on notional is what funds inventory."
+    )
 
 st.caption("Simulation only — no real funds, wallets, or onchain transactions are involved.")

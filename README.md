@@ -3,6 +3,13 @@
 Interactive architecture map of the Bushido agent stack, plus a **simulated**
 guardrail console. No real funds, wallets or onchain transactions are involved.
 
+## Onchain: `BushidoFeeVault`
+`contracts/` holds the fee-retention vault that funds Bushido's path from routing → own solver → own bridge.
+Design and economics: [`docs/onchain-mechanisms.md`](docs/onchain-mechanisms.md). **Unaudited.**
+```bash
+cd contracts && forge test
+```
+
 ## Run locally
 ```bash
 pip install -r requirements.txt

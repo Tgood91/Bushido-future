@@ -19,6 +19,17 @@ jobs:
       - run: python -m py_compile app.py
       - run: pytest -q
 
+  contracts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge build --sizes
+      - run: forge test -vv
+
   docker:
     runs-on: ubuntu-latest
     needs: test
