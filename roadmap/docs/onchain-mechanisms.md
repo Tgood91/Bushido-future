@@ -73,25 +73,6 @@ DEPLOYER=$D forge script script/DeployOracleMarket.s.sol:DeployOracleMarket \
 ```
 Fork test (real state, no deploy): `BASE_RPC_URL=https://mainnet.base.org forge test --match-path 'test/fork/*' -vvvv`.
 
-## Cross-chain inventory: `InventoryBridge` (Chainlink CCIP)
-One `InventoryBridge` per chain, each paired with that chain's `BushidoFeeVault`.
-`rebalance(destChain, amount)` (owner or keeper) → `vault.sendInventory(amount)` → CCIP token transfer to the
-peer bridge → peer checks **source chain + sender bridge + token** → `vault.seedInventory(amount)` on arrival.
-
-Guardrails:
-- Only the registered `rebalancer` can pull from a vault, and only **idle** inventory.
-- A send can't push utilisation over the cap (open fills stay covered).
-- If a send drops capital below the current phase's threshold, the source vault **demotes itself**.
-- Inbound messages from any other chain/sender, or carrying a different token, are rejected (CCIP keeps them for
-  manual re-execution; nothing is credited). `ccipReceive` only accepts calls from the CCIP router.
-- Per-transfer cap; fees paid in native gas from the bridge's balance; per-destination extra args (gas limit,
-  out-of-order execution) are owner-settable, so moving to newer CCIP extra-args versions is a config change.
-
-Coverage: Base and Monad are CCIP networks; USDC is listed on Base Sepolia and Monad Testnet. NEAR is not a CCIP
-network, so NEAR inventory needs a different route. The vault token must be CCIP-supported on both ends,
-so on testnets the vault should use Circle test USDC (or CCIP-BnM), not our own tUSDC.
-Tests run on Chainlink Local's `CCIPLocalSimulator` (`test/InventoryBridge.t.sol`).
-
 ## Testnet run from the burner wallet
 `testnet/` is a static page you open **inside the wallet app that holds your burner** (same pattern as the BTG
 governance test). Your wallet only signs and sends; reads, gas estimates and receipts go through the public RPC.
@@ -108,5 +89,5 @@ Local dry run: `anvil` in one terminal, then `cd testnet && npm i && npm run dry
 4. **Bridge settlement verification** — in `BRIDGE` phase the vault currently trusts the solver to repay; loss is bounded
    only by caps, timeouts and the reserve. Next: repay against a verified origin-chain fill proof (e.g. NEAR Intents
    settlement / messaging-layer attestation) instead of solver honesty.
-5. **Live CCIP lanes**: deploy vault + `InventoryBridge` on Base Sepolia and Monad Testnet with the real CCIP router addresses and Circle test USDC, then mainnet once a USDC lane is confirmed.
+5. **Cross-chain inventory tracking (offchain)**: one vault per chain; balances across chains are tracked offchain for now. An onchain bridge (CCIP) was dropped: test tokens can't cross chains, NEAR isn't a CCIP network, and no mainnet USDC lane was confirmed.
 6. **Audit** before any mainnet funds. This contract is unaudited.

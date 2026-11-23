@@ -1,9 +1,5 @@
 {
   "name": "bushido-contracts",
   "private": true,
-  "devDependencies": {
-    "@chainlink/contracts-ccip": "^2.0.0",
-    "@chainlink/local": "^0.3.1",
-    "solady": "0.1.26"
-  }
+  "devDependencies": { "solady": "0.1.26" }
 }
