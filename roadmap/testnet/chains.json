@@ -33,7 +33,7 @@
     "sepolia": {
       "id": 11155111,
       "hex": "0xaa36a7",
-      "name": "Sepolia",
+      "name": "Ethereum Sepolia",
       "rpc": "https://ethereum-sepolia-rpc.publicnode.com",
       "explorer": "https://sepolia.etherscan.io",
       "coin": "ETH",
@@ -42,6 +42,21 @@
         "mailbox": "0xfFAEF09B3cd11D9b20d1a19bECca54EEC2884766",
         "igp": "0x6f2756380FD49228ae25Aa7F2817993cB74Ecc56",
         "registryKey": "sepolia"
+      },
+      "chainlink": {
+        "ETH/USD": "0x694AA1769357215DE4FAC081bf1f309aDC325306"
+      },
+      "market": {
+        "name": "Bushido Test ETH",
+        "symbol": "tETH",
+        "feed": "ETH/USD",
+        "maxStaleness": 7200,
+        "mainnetReference": {
+          "chain": "Ethereum",
+          "chainId": 1,
+          "rpc": "https://ethereum-rpc.publicnode.com",
+          "feed": "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+        }
       }
     },
     "arbitrum-sepolia": {
