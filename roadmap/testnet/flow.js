@@ -17,10 +17,49 @@ let READ = null;
 export function setRead(provider) { READ = provider; }
 const reader = (signer) => READ || signer.provider;
 
+// Every custom error from every page contract, so a revert reads "ThresholdNotMet(…)" instead of
+// "unknown custom error" (txs are sent as raw requests, without a contract interface attached).
+let ERRORS = null;
+export function setContracts(ethers, C) {
+  const seen = new Set();
+  const frags = [];
+  for (const c of Object.values(C)) {
+    for (const f of c.abi) {
+      if (f.type !== 'error') continue;
+      const sig = `${f.name}(${(f.inputs || []).map((i) => i.type).join(',')})`;
+      if (!seen.has(sig)) { seen.add(sig); frags.push(f); }
+    }
+  }
+  ERRORS = new ethers.Interface(frags);
+}
+export function explain(e) {
+  const data = e?.data || e?.info?.error?.data || e?.error?.data;
+  if (ERRORS && typeof data === 'string' && data.length >= 10) {
+    try {
+      const d = ERRORS.parseError(data);
+      if (d) return `${d.name}(${d.args.map(String).join(', ')})`;
+    } catch {}
+  }
+  return e?.shortMessage || e?.reason || e?.message || String(e);
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function send(ethers, signer, req, log) {
   const rp = reader(signer);
   const from = await signer.getAddress();
-  const gas = await rp.estimateGas({ ...req, from });
+  // Public RPCs can sit behind several nodes: right after our previous tx, a node that hasn't seen it yet makes
+  // this estimate revert (e.g. advancePhase before the seed is visible). Retry a few times before giving up.
+  let gas;
+  for (let i = 0; ; i++) {
+    try {
+      gas = await rp.estimateGas({ ...req, from });
+      break;
+    } catch (e) {
+      if (i >= 4 || e?.code !== 'CALL_EXCEPTION') throw new Error(explain(e));
+      log?.(`  RPC not caught up yet (${explain(e)}); retrying…`);
+      await sleep(2500);
+    }
+  }
   const fee = await rp.getFeeData();
   const tx = { ...req, from, gasLimit: (gas * 12n) / 10n + 20000n };
   if (fee.maxFeePerGas) Object.assign(tx, { maxFeePerGas: fee.maxFeePerGas * 2n, maxPriorityFeePerGas: fee.maxPriorityFeePerGas ?? 1n });
@@ -34,6 +73,8 @@ async function send(ethers, signer, req, log) {
   }
   if (!rc) throw new Error(`not confirmed after 3 minutes (tx ${hash}); check your wallet's activity`);
   if (rc.status !== 1) throw new Error(`reverted on-chain (tx ${hash})`);
+  // Read-your-writes: don't start the next step until the read RPC reports this tx's block.
+  for (let i = 0; i < 15 && (await rp.getBlockNumber().catch(() => 0)) < rc.blockNumber; i++) await sleep(1000);
   return rc;
 }
 const callTx = (ethers, C, name, to, fn, args) => ({ to, data: new ethers.Interface(C[name].abi).encodeFunctionData(fn, args) });

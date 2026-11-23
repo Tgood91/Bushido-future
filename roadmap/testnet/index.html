@@ -231,13 +231,14 @@ async function refresh() {
 async function run(label, fn) {
   if (busy) return; busy = true; await refresh().catch(() => {});
   try { await toTestnet(); await fn(); log(`${label}: done`, 'ok'); }
-  catch (e) { log(`${label} failed: ${e.shortMessage || e.reason || e.message}`, 'bad'); }
+  catch (e) { log(`${label} failed: ${F.explain(e)}`, 'bad'); }
   finally { save(); busy = false; await refresh().catch(() => {}); }
 }
 $('connect').onclick = async () => {
   if (!window.ethereum) return log('No wallet found. Open this page in the browser inside the wallet app that holds your burner.', 'bad');
   try {
     C = C || (await (await fetch('./contracts.json')).json()).contracts;
+    F.setContracts(ethers, C);
     await window.ethereum.request({ method: 'eth_requestAccounts' });
     await toTestnet();
     signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
