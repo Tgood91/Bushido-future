@@ -12,6 +12,7 @@ cd contracts && forge test
 
 ## Run locally
 ```bash
+cd roadmap
 pip install -r requirements.txt
 streamlit run app.py          # http://localhost:8501
 ```
@@ -24,10 +25,10 @@ pytest -q
 
 ## Docker
 ```bash
-docker build -t bushido-roadmap .
+docker build -t bushido-roadmap roadmap   # from the repo root
 docker run -p 8501:8501 bushido-roadmap
 ```
 
 ## Deploy (Render)
-`render.yaml` defines a free Docker web service.
+`render.yaml` at the repo root defines a free Docker web service rooted at `roadmap/`; only changes under `roadmap/` redeploy it.
 In Render: **New → Blueprint**, pick this repo, and apply. Health check: `/_stcore/health`.
