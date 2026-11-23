@@ -83,6 +83,25 @@ sends; reads, gas estimates and receipts go through the chain's public RPC. Choo
 To test the page against a fork, add `?rpc=http://127.0.0.1:8545` so reads hit the fork too, and
 `?faucet=http://127.0.0.1:8790` for a local faucet.
 
+### Live testnet coverage
+
+Every market chain below was run end to end with the burner wallet on the live testnet. The run covered Add
+network, Connect, steps 1–5 (vault, mint, x402, flush, seed + graduate) and M1–M3 (deploy the live-priced market,
+sell, buy). Each chain was also run first on a fork.
+
+| Chain | Test token | Price feed (Chainlink) | Live burner test |
+|---|---|---|---|
+| Avalanche Fuji | tAVAX | AVAX/USD | ✅ |
+| Ethereum Sepolia | tETH | ETH/USD | ✅ |
+| Base Sepolia | tETH | ETH/USD | ✅ |
+| Arbitrum Sepolia | tETH | ETH/USD | ✅ |
+| OP Sepolia | tETH | ETH/USD | ✅ (after the RPC-lag fix) |
+| Unichain Sepolia | tETH | ETH/USD (24 h heartbeat) | ✅ |
+| Polygon Amoy | tETH | ETH/USD | ✅ |
+| BSC testnet | tBNB | BNB/USD | ✅ |
+| Monad testnet | tETH | ETH/USD (24 h heartbeat) | ✅ |
+| Linea Sepolia | — | none (feed stale and 5% off mainnet) | vault and x402 only; not yet run (no gas) |
+
 ## Faucet (`faucet/`)
 
 A small Node service (`solving-faucet` on Render) that sends **0.05 ETH on Ethereum Sepolia and on Base Sepolia**
