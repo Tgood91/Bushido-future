@@ -11,7 +11,7 @@ Promotion is permissionless and purely threshold-gated (`advancePhase()`); the o
 Any fill that isn't settled in time is written off by anyone (`markDefault`) and forces the vault back to `ROUTING`.
 
 ## Fee sources → `BushidoFeeVault` (Base, USDC)
-1. **x402 job fee** — 0.01 USDC per request. The x402 `payTo` should be a forwarder holding `collector` rights that calls `collectFee(X402, amt)`.
+1. **x402 job fee** — 0.01 USDC per request, paid to `X402Forwarder` (see below), which batches and forwards to the vault.
 2. **Execution fee** — bps of routed notional (default modelled at 10 bps), charged by the router and forwarded via `collectFee(EXECUTION, amt)`.
 3. **Solver spread** — once self-solving, any repayment above principal in `settleFill` is profit and is re-split automatically.
 
@@ -38,8 +38,25 @@ All tunable via `setThresholds` / `setRisk`.
 - **x402 fees alone are negligible** (1M jobs = 7,000 USDC retained). Execution bps on notional is the real engine.
   A founder seed via `seedInventory()` shortens this linearly.
 
+## X402Forwarder — the x402 `payTo`
+Flow: agent calls a paid endpoint → server answers **HTTP 402** with payment requirements → agent signs an
+EIP-3009 `TransferWithAuthorization` → facilitator settles on Base with `to = X402Forwarder` → USDC batches up →
+anyone (keeper / cron) calls `flush()` once `flushable()` → vault `collectFee(X402, amount)` → 70/10/20 split.
+
+- `payTo` in your x402 payment requirements = **the forwarder address** (scheme `exact`, network `base`, asset = Base USDC, amount `10000` = 0.01 USDC).
+- `minFlush` (default 1 USDC ≈ 100 jobs) stops dust-sized flushes; gas is paid by whoever flushes.
+- USDC can **only** go to the immutable vault: no owner withdrawal, and `rescue()` refuses USDC.
+- If the vault revokes the forwarder's collector rights, `flush()` reverts and funds stay in the forwarder.
+
+Deploy (simulate first, then add `--rpc-url ... --account ... --broadcast`):
+```bash
+cd contracts
+USDC=<base usdc> DEPLOYER=<signer addr> OWNER=<multisig> forge script script/Deploy.s.sol:Deploy
+```
+Then `OWNER` must call `vault.acceptOwnership()`.
+
 ## Not built yet (next steps)
-1. **x402 forwarder** contract/service that receives x402 payments and calls `collectFee`.
+1. **x402 resource server + keeper**: the 402 middleware on the agent API pointing `payTo` at the forwarder, and a cron that calls `flush()`.
 2. **Router fee hook** charging the execution fee on routed notional.
 3. **Solver executor** (offchain) that draws, fills, settles, and is the only `solver` address.
 4. **Bridge settlement verification** — in `BRIDGE` phase the vault currently trusts the solver to repay; loss is bounded

@@ -2,49 +2,10 @@
 pragma solidity ^0.8.24;
 
 import {BushidoFeeVault, IERC20} from "../src/BushidoFeeVault.sol";
-
-interface Vm {
-    function warp(uint256) external;
-    function prank(address) external;
-    function startPrank(address) external;
-    function stopPrank() external;
-    function expectRevert(bytes4) external;
-    function expectRevert(bytes calldata) external;
-    function assume(bool) external;
-}
-
-contract MockUSDC {
-    string public constant symbol = "USDC";
-    uint8 public constant decimals = 6;
-    mapping(address => uint256) public balanceOf;
-    mapping(address => mapping(address => uint256)) public allowance;
-
-    function mint(address to, uint256 amt) external {
-        balanceOf[to] += amt;
-    }
-
-    function approve(address s, uint256 amt) external returns (bool) {
-        allowance[msg.sender][s] = amt;
-        return true;
-    }
-
-    function transfer(address to, uint256 amt) external returns (bool) {
-        balanceOf[msg.sender] -= amt;
-        balanceOf[to] += amt;
-        return true;
-    }
-
-    function transferFrom(address f, address to, uint256 amt) external returns (bool) {
-        allowance[f][msg.sender] -= amt;
-        balanceOf[f] -= amt;
-        balanceOf[to] += amt;
-        return true;
-    }
-}
+import {MockUSDC} from "./mocks/MockUSDC.sol";
+import {vm} from "./mocks/Vm.sol";
 
 contract BushidoFeeVaultTest {
-    Vm constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
-
     uint256 constant USDC = 1e6;
     uint256 constant SELF_SOLVE = 6_250 * USDC;
     uint256 constant BRIDGE = 25_000 * USDC;
