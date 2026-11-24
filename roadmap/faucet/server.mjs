@@ -7,6 +7,7 @@
 //   DRIP_ETH             amount per drip per chain (default 0.05)
 //   DAILY_CAP_ETH        max total sent per chain per rolling 24 h (default 2 = 40 drips)
 //   MAX_RECIPIENT_ETH    refuse wallets already holding at least this much (default 0.5)
+//   MAX_RECIPIENT_ETH_SEPOLIA, MAX_RECIPIENT_ETH_BASE_SEPOLIA   per-chain override; "off" skips the check
 //   RPC_SEPOLIA, RPC_BASE_SEPOLIA   override the RPCs from ../testnet/chains.json
 //   PORT                 set by Render
 //
@@ -20,7 +21,12 @@ const DAY = 24 * 60 * 60 * 1000;
 const ORIGIN = process.env.ALLOWED_ORIGIN || 'https://solving.onrender.com';
 const DRIP = ethers.parseEther(process.env.DRIP_ETH || '0.05');
 const DAILY_CAP = ethers.parseEther(process.env.DAILY_CAP_ETH || '2');
-const MAX_RECIPIENT = ethers.parseEther(process.env.MAX_RECIPIENT_ETH || '0.5');
+const MAX_RECIPIENT = process.env.MAX_RECIPIENT_ETH || '0.5';
+// Per-chain recipient balance limit: null means no limit ("off").
+const recipientLimit = (k) => {
+  const v = (process.env[`MAX_RECIPIENT_ETH_${k.toUpperCase().replace(/-/g, '_')}`] || MAX_RECIPIENT).trim();
+  return /^(off|none)$/i.test(v) ? null : ethers.parseEther(v);
+};
 
 let registry = {};
 try {
@@ -32,6 +38,8 @@ const CHAINS = {
   sepolia: { id: 11155111, name: 'Ethereum Sepolia', rpc: process.env.RPC_SEPOLIA || registry.sepolia?.rpc || 'https://ethereum-sepolia-rpc.publicnode.com', explorer: registry.sepolia?.explorer || 'https://sepolia.etherscan.io' },
   'base-sepolia': { id: 84532, name: 'Base Sepolia', rpc: process.env.RPC_BASE_SEPOLIA || registry['base-sepolia']?.rpc || 'https://sepolia.base.org', explorer: registry['base-sepolia']?.explorer || 'https://sepolia.basescan.org' },
 };
+
+for (const [k, c] of Object.entries(CHAINS)) c.maxRecipient = recipientLimit(k);
 
 const key = process.env.FAUCET_PRIVATE_KEY;
 const wallets = {};
@@ -80,8 +88,8 @@ async function drip(k, to, ip) {
   lastDrip.set(idA, Date.now()); // reserve before the async work so parallel requests can't double-drip
   lastDrip.set(idI, Date.now());
   try {
-    if ((await c.provider.getBalance(to)) >= MAX_RECIPIENT) {
-      throw Object.assign(new Error(`wallet already holds ≥ ${ethers.formatEther(MAX_RECIPIENT)} ETH on ${c.name}`), { status: 400 });
+    if (c.maxRecipient !== null && (await c.provider.getBalance(to)) >= c.maxRecipient) {
+      throw Object.assign(new Error(`wallet already holds ≥ ${ethers.formatEther(c.maxRecipient)} ETH on ${c.name}`), { status: 400 });
     }
     const w = wallets[k];
     if ((await c.provider.getBalance(faucetAddress)) < DRIP) throw Object.assign(new Error(`faucet is empty on ${c.name}`), { status: 503 });
