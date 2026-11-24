@@ -110,7 +110,9 @@ to the connected wallet in one tap.
 - **Limits:**
   - one drip per address per chain and one per client IP per chain every 24 h;
   - a daily cap per chain (`DAILY_CAP_ETH`, default 2 ETH = 40 drips);
-  - wallets already holding 0.5 ETH or more are refused.
+  - wallets already holding too much are refused: by default 0.5 ETH (`MAX_RECIPIENT_ETH`), with a per-chain
+    override (`MAX_RECIPIENT_ETH_SEPOLIA`, `MAX_RECIPIENT_ETH_BASE_SEPOLIA`; `off` skips the check). Live:
+    5 ETH on Sepolia, off on Base Sepolia.
 - **Restarts:** limits are kept in memory, so a restart clears them. The daily cap and the faucet balance still
   bound what can be taken.
 - **Key:** set `FAUCET_PRIVATE_KEY` in the Render dashboard (Environment), never in the repo. Then fund that

@@ -31,7 +31,7 @@ const a = await startAnvil(8551, 11155111, ['--mnemonic-random']);
 const b = await startAnvil(8552, 84532, ['--mnemonic', a.mnemonic]);
 const server = spawn('node', ['server.mjs'], {
   env: { ...process.env, FAUCET_PRIVATE_KEY: a.key, RPC_SEPOLIA: a.rpc, RPC_BASE_SEPOLIA: b.rpc, PORT: String(PORT),
-    ALLOWED_ORIGIN: ORIGIN, DAILY_CAP_ETH: '0.25' }, // 5 drips per chain per day for the test
+    ALLOWED_ORIGIN: ORIGIN, DAILY_CAP_ETH: '0.25', MAX_RECIPIENT_ETH_SEPOLIA: '5', MAX_RECIPIENT_ETH_BASE_SEPOLIA: 'off' }, // 5 drips per chain per day for the test
 });
 procs.push(server);
 await new Promise((r) => server.stdout.on('data', (d) => String(d).includes('faucet on') && r()));
@@ -63,14 +63,19 @@ try {
   const par = await Promise.all([fresh(), fresh(), fresh()].map((u, i) => drip(u, `2.2.2.${i}`)));
   ok(par.every((r) => r.code === 200 && r.body.results.every((x) => x.status === 200)), '3 simultaneous drips all succeed (no nonce collisions)');
 
-  const rich = fresh();
-  await pa.send('anvil_setBalance', [rich, ethers.toBeHex(ethers.parseEther('1'))]);
+  const rich = fresh(); // 6 ETH on Sepolia (over its 5 ETH limit), 9 ETH on Base Sepolia (limit off)
+  await pa.send('anvil_setBalance', [rich, ethers.toBeHex(ethers.parseEther('6'))]);
+  await pb.send('anvil_setBalance', [rich, ethers.toBeHex(ethers.parseEther('9'))]);
   const rr = await drip(rich, '3.3.3.3');
-  const rs = rr.body.results.find((x) => x.chain === undefined && /already holds/.test(x.error || ''));
-  ok(rs && rr.body.results.length === 2, 'wallet already holding ≥ 0.5 ETH is refused on that chain');
+  const rs = rr.body.results.find((x) => /already holds ≥ 5\.0 ETH on Ethereum Sepolia/.test(x.error || ''));
+  const rb = rr.body.results.find((x) => x.chain === 'base-sepolia' && x.status === 200);
+  ok(rs && rb && rr.body.results.length === 2, 'per-chain limits: refused on Sepolia (holds ≥ 5 ETH), dripped on Base Sepolia (limit off)');
+  const under = fresh(); // 3.6 ETH on Sepolia is under the 5 ETH limit
+  await pa.send('anvil_setBalance', [under, ethers.toBeHex(ethers.parseEther('3.6'))]);
+  const ru = await drip(under, '3.3.3.4');
+  ok(ru.body.results.find((x) => x.chain === 'sepolia')?.status === 200, 'wallet holding 3.6 ETH still gets a Sepolia drip');
 
-  const r5 = await drip(fresh(), '4.4.4.4');
-  ok(r5.body.results.filter((x) => x.status === 200).length >= 1, '5th drip still within the daily cap');
+  // 5 drips per chain so far (Sepolia: r1, 3 parallel, 3.6 ETH wallet; Base Sepolia: r1, 3 parallel, rich wallet)
   const r6 = await drip(fresh(), '5.5.5.5');
   ok(r6.code === 429 && r6.body.results.every((x) => /daily cap/.test(x.error)), 'daily cap stops further drips');
 
