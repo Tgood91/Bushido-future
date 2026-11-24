@@ -657,7 +657,12 @@ export const MULTI_CHAIN_TOKENS: Record<number, Record<string, BaseToken>> = {
     WETH: { symbol: 'WETH', name: 'Wrapped Ether', address: '0x4200000000000000000000000000000000000006', decimals: 18 },
     AERO: { symbol: 'AERO', name: 'Aerodrome Finance', address: '0x940181a94A35A4569E4529A3CDfB74e38FD98631', decimals: 18 },
     EURC: { symbol: 'EURC', name: 'Euro Coin', address: '0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42', decimals: 6 },
-    cbBTC: { symbol: 'cbBTC', name: 'Coinbase Wrapped BTC', address: '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf', decimals: 8 }
+    cbBTC: { symbol: 'cbBTC', name: 'Coinbase Wrapped BTC', address: '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf', decimals: 8 },
+    LINK: { symbol: 'LINK', name: 'ChainLink Token', address: '0x88Fb150BDc53A65fe94Dea0c9BA0a6dAf8C6e196', decimals: 18 },
+    BRETT: { symbol: 'BRETT', name: 'Brett', address: '0x532f27101965dd16442E59d40670FaF5eBB142E4', decimals: 18 },
+    CRV: { symbol: 'CRV', name: 'Curve DAO Token', address: '0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415', decimals: 18 },
+    USDe: { symbol: 'USDe', name: 'USDe', address: '0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34', decimals: 18 },
+    sUSDe: { symbol: 'sUSDe', name: 'Staked USDe', address: '0x211Cc4DD073734dA055fbF44a2b4667d5E5fE5d2', decimals: 18 }
   },
   143: {
     MON: { symbol: 'MON', name: 'Monad (Native)', address: '0x0000000000000000000000000000000000000000', decimals: 18, isNative: true },
@@ -740,7 +745,12 @@ class MultiChainOnChainService {
       { symbol: 'WETH', address: '0x4200000000000000000000000000000000000006', decimals: 18, unitPrice: 2703.41 },
       { symbol: 'AERO', address: '0x940181a94A35A4569E4529A3CDfB74e38FD98631', decimals: 18, unitPrice: 0.86 },
       { symbol: 'EURC', address: '0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42', decimals: 6, unitPrice: 1.08 },
-      { symbol: 'cbBTC', address: '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf', decimals: 8, unitPrice: 68500.0 }
+      { symbol: 'cbBTC', address: '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf', decimals: 8, unitPrice: 68500.0 },
+      { symbol: 'LINK', address: '0x88Fb150BDc53A65fe94Dea0c9BA0a6dAf8C6e196', decimals: 18, unitPrice: 8.8 },
+      { symbol: 'BRETT', address: '0x532f27101965dd16442E59d40670FaF5eBB142E4', decimals: 18, unitPrice: 0.003 },
+      { symbol: 'CRV', address: '0x8Ee73c484A26e0A5df2Ee2a4960B789967dd0415', decimals: 18, unitPrice: 0.175 },
+      { symbol: 'USDe', address: '0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34', decimals: 18, unitPrice: 1.0 },
+      { symbol: 'sUSDe', address: '0x211Cc4DD073734dA055fbF44a2b4667d5E5fE5d2', decimals: 18, unitPrice: 1.26 }
     ];
 
     for (const t of erc20Tokens) {
