@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bushido Future</string>
+    <string name="launcher_name">Bushido Future</string>
+    <!-- Digital Asset Links, app side. The site side is /.well-known/assetlinks.json (public/.well-known/ in the repo root). -->
+    <string name="asset_statements" translatable="false">[{ \"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": { \"namespace\": \"web\", \"site\": \"https://bushido-future.onrender.com\" } }]</string>
+</resources>

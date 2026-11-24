@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.github.tgood91.bushidofuture",
+      "sha256_cert_fingerprints": [
+        "50:7F:F8:36:84:DB:C1:DB:44:82:D9:42:15:9B:BB:E0:FE:A7:AC:D9:AA:07:A2:13:A5:50:DC:29:36:36:73:C1"
+      ]
+    }
+  }
+]

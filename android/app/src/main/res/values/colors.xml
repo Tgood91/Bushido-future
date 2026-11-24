@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Splash and system bars: the dark Bushido background -->
+    <color name="bushido_background">#0A0A0F</color>
+    <!-- Corners of the adaptive icon's background gradient (shared Bushido icon) -->
+    <color name="icon_gradient_start">#2D768A</color>
+    <color name="icon_gradient_end">#9E5699</color>
+</resources>
