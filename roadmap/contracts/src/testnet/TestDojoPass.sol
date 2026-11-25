@@ -20,9 +20,11 @@ contract TestDojoPass {
     event PassGranted(address indexed account);
     event PassRevoked(address indexed account);
 
-    constructor(address owner_, uint256 fee) {
+    /// @param firstHolder granted a pass at deploy (zero for none)
+    constructor(address owner_, uint256 fee, address firstHolder) {
         owner = owner_;
         passFeeInWei = fee;
+        if (firstHolder != address(0)) _grant(firstHolder);
     }
 
     modifier onlyOwner() {

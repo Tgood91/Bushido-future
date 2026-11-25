@@ -4,11 +4,22 @@ pragma solidity ^0.8.24;
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
+import {IDojoPassRenderer, PassState} from "./DojoPassRenderer.sol";
 
 /// @notice Read side of the live Dojo Pass registry (Base 0x6B6A…7D9c, Monad 0x2647…CA53).
 /// Selectors verified against deployed bytecode on 2026-11-24.
 interface IDojoPass {
     function hasDojoPass(address account) external view returns (bool);
+    function isPractitioner(address account) external view returns (bool);
+}
+
+/// @notice Read side of HONOR ("Bushido Honor", Monad 0x46D5…7A2e), the recordTrade feed.
+/// Selectors verified against deployed bytecode on 2026-11-24.
+interface IHonor {
+    function tradeCount(address trader) external view returns (uint256);
+    function honorScores(address trader) external view returns (uint256);
+    /// @dev 5 static words: Gi, Yu, Jin, Rei, Makoto, each 0-10.
+    function getVirtueScores(address trader) external view returns (uint256, uint256, uint256, uint256, uint256);
 }
 
 /// @notice ERC-5192 minimal soulbound interface.
@@ -19,28 +30,30 @@ interface IERC5192 {
 }
 
 /// @title Dojo Pass DNA
-/// @notice A living, soulbound edition of the Dojo Pass. Modelled on Zerion DNA
-/// (0x9322…848bf): a plain ERC-721 whose metadata is served from an owner-set
-/// base URI and recomputed off-chain from the holder's practice.
+/// @notice A living, soulbound edition of the Dojo Pass, fully on-chain. Modelled on
+/// Zerion DNA (0x9322…848bf), but instead of pointing at an off-chain metadata
+/// server, tokenURI reads live state (days since mint, registry Practitioner flag,
+/// HONOR trades, standing and virtues) and renders JSON + SVG on-chain at read time.
+/// The pass evolves the moment its holder's on-chain record does: no backend, no
+/// metadata writes, no per-update gas.
 ///
-/// Differences from Zerion DNA:
-///  - Mint is gated on the existing Dojo Pass registry (earned, never bought here; no fee).
-///  - tokenId = uint160(holder): one pass per wallet, and it maps 1:1 to the
-///    address-keyed metadata backend.
-///  - Soulbound (ERC-5192): no transfers or approvals. Holder may burn; owner may
-///    burn only when the registry pass has been revoked.
-///  - ERC-4906 events so marketplaces know to re-fetch metadata.
-///  - No OpenSea proxy registry (2022 mainnet-only address).
+///  - Mint is gated on the live Dojo Pass registry (earned, never bought here; no fee).
+///  - tokenId = uint160(holder): one pass per wallet.
+///  - Soulbound (ERC-5192): no transfers or approvals. Holder may burn; owner may burn
+///    only when the registry pass has been revoked.
+///  - The renderer is a separate contract the owner can replace (art upgrades), and
+///    ERC-4906 events tell marketplaces to re-fetch.
 contract DojoPassDNA is ERC721, Ownable, Pausable, IERC5192 {
     /// @notice The live Dojo Pass registry on this chain.
     IDojoPass public immutable dojoPass;
+    /// @notice HONOR on this chain, or zero where there is none (e.g. Base).
+    IHonor public honor;
+    IDojoPassRenderer public renderer;
 
     /// @notice Collection-level metadata (OpenSea convention).
     string public contractURI;
-
     uint256 public totalSupply;
-
-    string private baseURI_;
+    mapping(uint256 => uint256) public mintedAt;
 
     // ERC-4906
     event MetadataUpdate(uint256 tokenId);
@@ -52,12 +65,15 @@ contract DojoPassDNA is ERC721, Ownable, Pausable, IERC5192 {
     error NotHolder();
     error ZeroAddress();
 
-    constructor(IDojoPass registry, address owner_, string memory baseURI, string memory contractURI_)
+    constructor(IDojoPass registry, IHonor honor_, IDojoPassRenderer renderer_, address owner_, string memory contractURI_)
         ERC721("Dojo Pass DNA", "DOJODNA")
     {
-        if (address(registry) == address(0) || owner_ == address(0)) revert ZeroAddress();
+        if (address(registry) == address(0) || address(renderer_) == address(0) || owner_ == address(0)) {
+            revert ZeroAddress();
+        }
         dojoPass = registry;
-        baseURI_ = baseURI;
+        honor = honor_;
+        renderer = renderer_;
         contractURI = contractURI_;
         _transferOwnership(owner_);
         _pause(); // like Zerion DNA: deploy quietly, unpause to open minting
@@ -70,6 +86,7 @@ contract DojoPassDNA is ERC721, Ownable, Pausable, IERC5192 {
         if (!dojoPass.hasDojoPass(msg.sender)) revert NoDojoPass();
         tokenId = tokenIdOf(msg.sender);
         _mint(msg.sender, tokenId); // reverts if already minted: one per wallet
+        mintedAt[tokenId] = block.timestamp;
         unchecked {
             ++totalSupply;
         }
@@ -93,33 +110,57 @@ contract DojoPassDNA is ERC721, Ownable, Pausable, IERC5192 {
 
     function _burnPass(uint256 tokenId) private {
         _burn(tokenId);
+        delete mintedAt[tokenId];
         unchecked {
             --totalSupply;
         }
     }
 
-    // ------------------------------------------------------------------ metadata
+    // ------------------------------------------------------------------ living metadata
 
-    /// @notice Point every token at the metadata backend. Emits ERC-4906 so marketplaces refresh.
-    function setBaseURI(string calldata newBaseURI) external onlyOwner {
-        baseURI_ = newBaseURI;
-        emit BatchMetadataUpdate(0, type(uint256).max);
+    /// @notice Fully on-chain metadata, recomputed from live state on every read.
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        return renderer.tokenURI(passState(tokenId));
     }
 
-    function setContractURI(string calldata newContractURI) external onlyOwner {
-        contractURI = newContractURI;
-    }
-
-    /// @notice Ask marketplaces to re-fetch one pass after it evolved. Holder or owner only.
-    function refreshMetadata(uint256 tokenId) external {
+    /// @notice The live state tokenURI renders. Never reverts on a misbehaving HONOR:
+    /// unreadable feeds render as "Not yet recorded".
+    function passState(uint256 tokenId) public view returns (PassState memory p) {
         address holder = ownerOf(tokenId);
-        if (msg.sender != holder && msg.sender != owner()) revert NotHolder();
-        emit MetadataUpdate(tokenId);
+        p.tokenId = tokenId;
+        p.holder = holder;
+        p.chainId = block.chainid;
+        p.ageDays = (block.timestamp - mintedAt[tokenId]) / 1 days;
+        try dojoPass.isPractitioner(holder) returns (bool ok) {
+            p.practitioner = ok;
+        } catch {}
+        _readHonor(p);
     }
 
-    /// @dev tokenURI = baseURI + decimal tokenId (OpenZeppelin default).
-    function _baseURI() internal view override returns (string memory) {
-        return baseURI_;
+    function _readHonor(PassState memory p) private view {
+        IHonor h = honor;
+        if (address(h) == address(0)) return;
+        try h.tradeCount(p.holder) returns (uint256 t) {
+            try h.honorScores(p.holder) returns (uint256 s) {
+                try h.getVirtueScores(p.holder) returns (uint256 gi, uint256 yu, uint256 jin, uint256 rei, uint256 makoto) {
+                    p.trades = t;
+                    p.standing = s > 100 ? 100 : s;
+                    p.virtues = [_cap(gi), _cap(yu), _cap(jin), _cap(rei), _cap(makoto)];
+                    p.honorWired = true;
+                } catch {}
+            } catch {}
+        } catch {}
+    }
+
+    function _cap(uint256 score) private pure returns (uint8) {
+        return uint8(score > 10 ? 10 : score);
+    }
+
+    /// @notice Anyone may ask marketplaces to re-fetch a pass after its record changed.
+    /// Only emits an event; metadata itself is always live.
+    function refreshMetadata(uint256 tokenId) external {
+        ownerOf(tokenId); // must exist
+        emit MetadataUpdate(tokenId);
     }
 
     /// @notice The only tokenId `holder` can ever own.
@@ -152,6 +193,23 @@ contract DojoPassDNA is ERC721, Ownable, Pausable, IERC5192 {
     }
 
     // ------------------------------------------------------------------ admin
+
+    /// @notice Swap the on-chain art. Every pass re-renders.
+    function setRenderer(IDojoPassRenderer newRenderer) external onlyOwner {
+        if (address(newRenderer) == address(0)) revert ZeroAddress();
+        renderer = newRenderer;
+        emit BatchMetadataUpdate(0, type(uint256).max);
+    }
+
+    /// @notice Point at HONOR (or zero to disable the feed). Every pass re-renders.
+    function setHonor(IHonor newHonor) external onlyOwner {
+        honor = newHonor;
+        emit BatchMetadataUpdate(0, type(uint256).max);
+    }
+
+    function setContractURI(string calldata newContractURI) external onlyOwner {
+        contractURI = newContractURI;
+    }
 
     function pause() external onlyOwner {
         _pause();
