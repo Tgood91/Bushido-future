@@ -16,6 +16,7 @@ interface Vm {
     function envAddress(string calldata) external returns (address);
     function envOr(string calldata, uint256) external returns (uint256);
     function envOr(string calldata, string calldata) external returns (string memory);
+    function envOr(string calldata, address) external returns (address);
     function createSelectFork(string calldata) external returns (uint256);
     function startBroadcast(address signer) external;
     function stopBroadcast() external;
