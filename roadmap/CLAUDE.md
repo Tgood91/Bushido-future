@@ -35,8 +35,8 @@ Chainlink feed has the right `description()` and a recent `updatedAt`.
 - When a check fails, make one fix attempt; if it still fails, stop and report.
 - Public test keys (anvil/hardhat account 0 etc.) carry strangers' EIP-7702 delegations on public testnets
   (code `0xef0100…`). On forks, `_safeMint`/receiver callbacks then run their delegate and can revert with no data:
-  `dryrun.mjs` clears it with `anvil_setCode`. A real burner with a 7702 delegate that lacks `onERC721Received`
-  will hit the same revert minting DojoPassDNA.
+  `dryrun.mjs` clears it with `anvil_setCode`. Real burners can carry 7702 delegates too: DojoPassDNA is soulbound
+  and uses plain `_mint` (no receiver callback) so they can always mint; keep it that way.
 - Public RPCs can be load-balanced, so the node answering the next call may not have seen the tx just confirmed
   (OP Sepolia "Seed + graduate" reverted live this way; forks have one node and can't reproduce it). The page's
   `send()` waits for the read RPC to reach the receipt's block and retries reverting gas estimates. Every revert is

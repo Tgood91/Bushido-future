@@ -235,17 +235,23 @@ export async function marketStatus(ethers, C, read, st, me) {
   return { price: ethers.formatUnits(px, 6), ageMin: Math.max(0, Math.round((now - Number(updated)) / 60)), bal: ethers.formatEther(bal), fees: ethers.formatUnits(fees, 6) };
 }
 
-// Dojo Pass DNA: a Zerion DNA clone (plain ERC-721, owner-set base URI, metadata recomputed off-chain).
-// Mint costs DojoPassDNA.mintPrice (0.0001 of the chain's coin at deploy). Independent of the vault steps.
+// Dojo Pass DNA: a living, soulbound Dojo Pass (Zerion DNA as the template). Mint is gated on the Dojo Pass
+// registry and costs DojoPassDNA.mintPrice (0.0001 of the chain's coin at deploy); tokenId = uint160(holder), one
+// per wallet. The live registry exists only on Base/Monad mainnet, so on testnets D1 deploys a TestDojoPass stand-in
+// that grants the burner a pass. Traits come from the base URI (D3), recomputed off-chain. Independent of the vault.
 
-/** Step D1: deploy DojoPassDNA (it deploys paused, like Zerion DNA) and open minting. */
+/** Step D1: deploy the registry stand-in + DojoPassDNA (it deploys paused, like Zerion DNA) and open minting. */
 export async function deployDna(ethers, C, signer, st, log) {
-  if (!st.dna) {
-    log('Deploying DojoPassDNA…');
-    const req = await new ethers.ContractFactory(C.DojoPassDNA.abi, C.DojoPassDNA.bytecode).getDeployTransaction();
-    st.dna = (await send(ethers, signer, { data: req.data }, log)).contractAddress;
-    log(`DojoPassDNA: ${st.dna}`);
-  } else log(`DojoPassDNA already at ${st.dna}`);
+  const me = await signer.getAddress();
+  const deploy = async (name, args, key) => {
+    if (st[key]) return log(`${name} already at ${st[key]}`);
+    log(`Deploying ${name}…`);
+    const req = await new ethers.ContractFactory(C[name].abi, C[name].bytecode).getDeployTransaction(...args);
+    st[key] = (await send(ethers, signer, { data: req.data }, log)).contractAddress;
+    log(`${name}: ${st[key]}`);
+  };
+  await deploy('TestDojoPass', [me, 0n, me], 'dnaPass'); // testnet registry; you hold the first pass
+  await deploy('DojoPassDNA', [st.dnaPass], 'dna');
   const dna = new ethers.Contract(st.dna, C.DojoPassDNA.abi, reader(signer));
   if (await dna.paused()) {
     log('Opening minting (unpause)…');
@@ -254,26 +260,18 @@ export async function deployDna(ethers, C, signer, st, log) {
   st.dnaOpen = true;
 }
 
-/** Step D2: mint the next pass to me, paying exactly the current mint price. Returns the tokenId. */
+/** Step D2: mint my pass (tokenId = my address as a number), paying exactly the current mint price. */
 export async function mintDna(ethers, C, signer, st, log) {
-  const iface = new ethers.Interface(C.DojoPassDNA.abi);
-  const price = await new ethers.Contract(st.dna, C.DojoPassDNA.abi, reader(signer)).mintPrice();
-  log(`Minting a Dojo Pass DNA for ${ethers.formatEther(price)}…`);
-  const rc = await send(ethers, signer, { ...callTx(ethers, C, 'DojoPassDNA', st.dna, 'mint', []), value: price }, log);
-  const me = (await signer.getAddress()).toLowerCase();
-  for (const l of rc.logs) {
-    if (l.address.toLowerCase() !== st.dna.toLowerCase()) continue;
-    const ev = (() => { try { return iface.parseLog(l); } catch { return null; } })();
-    if (ev?.name === 'Transfer' && ev.args.to.toLowerCase() === me) {
-      st.dnaTokens = [...(st.dnaTokens || []), ev.args.tokenId.toString()];
-      log(`Minted Dojo Pass DNA #${ev.args.tokenId}`);
-      return ev.args.tokenId;
-    }
-  }
-  throw new Error('mint confirmed but no Transfer to me in the receipt');
+  const dna = new ethers.Contract(st.dna, C.DojoPassDNA.abi, reader(signer));
+  const price = await dna.mintPrice();
+  log(`Minting your Dojo Pass DNA for ${ethers.formatEther(price)}…`);
+  await send(ethers, signer, { ...callTx(ethers, C, 'DojoPassDNA', st.dna, 'mint', []), value: price }, log);
+  const id = await dna.tokenIdOf(await signer.getAddress());
+  log(`Minted Dojo Pass DNA #${id}`);
+  return id;
 }
 
-/** Step D3: point every tokenURI at a metadata server (tokenURI = baseURI + tokenId). */
+/** Step D3: point every tokenURI at the trait service (tokenURI = baseURI + tokenId). */
 export async function setDnaBaseURI(ethers, C, signer, st, uri, log) {
   log(`Setting base URI to ${uri || '(empty)'}…`);
   await send(ethers, signer, callTx(ethers, C, 'DojoPassDNA', st.dna, 'setBaseURI', [uri]), log);
@@ -288,11 +286,12 @@ export async function withdrawDna(ethers, C, signer, st, log) {
 export async function dnaStatus(ethers, C, read, st, me) {
   if (!st.dna) return null;
   const dna = new ethers.Contract(st.dna, C.DojoPassDNA.abi, read);
-  const [supply, price, mine, fees, paused, owner] = await Promise.all([
+  const reg = new ethers.Contract(await dna.dojoPass(), C.TestDojoPass.abi, read);
+  const [supply, price, mine, fees, paused, owner, hasPass, id] = await Promise.all([
     dna.totalSupply(), dna.mintPrice(), dna.balanceOf(me), read.getBalance(st.dna), dna.paused(), dna.owner(),
+    reg.hasDojoPass(me), dna.tokenIdOf(me),
   ]);
-  const last = st.dnaTokens?.at(-1);
-  const uri = last !== undefined ? await dna.tokenURI(last).catch(() => '') : '';
+  const uri = mine > 0n ? await dna.tokenURI(id).catch(() => '') : '';
   return { supply: supply.toString(), price: ethers.formatEther(price), mine: mine.toString(), fees: ethers.formatEther(fees),
-    paused, owner, last, uri, raw: { price, fees, mine } };
+    paused, owner, hasPass, id: id.toString(), uri, raw: { price, fees, mine } };
 }

@@ -35,22 +35,30 @@ await F.seedAndAdvance(ethers, C, signer, st, log);
 s = await F.status(ethers, C, read, st, me);
 assert(s.phase === 'SELF_SOLVE', `graduated to SELF_SOLVE (got ${s.phase})`);
 
-// Dojo Pass DNA (Zerion DNA clone), steps D1-D4
+// Dojo Pass DNA (soulbound, gated, 0.0001 mint), steps D1-D4
+const tryErr = async (fn) => { try { await fn(); return 'no revert'; } catch (e) { return F.explain(e); } };
+const dnaTx = (fn, args, value = 0n) => signer.sendTransaction({ to: st.dna, data: new ethers.Interface(C.DojoPassDNA.abi).encodeFunctionData(fn, args), value });
 await F.deployDna(ethers, C, signer, st, log);
 let d = await F.dnaStatus(ethers, C, read, st, me);
-assert(!d.paused && d.price === '0.0001' && d.supply === '0', `DNA deployed open at 0.0001 (got paused=${d.paused} price=${d.price})`);
-const id0 = await F.mintDna(ethers, C, signer, st, log);
-const id1 = await F.mintDna(ethers, C, signer, st, log);
+assert(!d.paused && d.price === '0.0001' && d.supply === '0' && d.hasPass, `DNA open at 0.0001, burner holds a test Dojo Pass (paused=${d.paused} price=${d.price} pass=${d.hasPass})`);
+const under = await tryErr(() => dnaTx('mint', [], 1n));
+assert(under === 'WrongMintPrice(1, 100000000000000)', `wrong price refused (got ${under})`);
+const id = await F.mintDna(ethers, C, signer, st, log);
 d = await F.dnaStatus(ethers, C, read, st, me);
-assert(id0 === 0n && id1 === 1n && d.supply === '2' && d.mine === '2', `sequential ids 0,1 (got ${id0},${id1}, supply ${d.supply})`);
-assert(d.fees === '0.0002', `contract holds 2 x 0.0001 (got ${d.fees})`);
+assert(id === BigInt(me) && d.supply === '1' && d.mine === '1', `tokenId = uint160(burner) (got ${id})`);
+assert(d.fees === '0.0001', `contract holds the 0.0001 fee (got ${d.fees})`);
+const again = await tryErr(() => dnaTx('mint', [], ethers.parseEther('0.0001')));
+assert(/already minted/.test(again), `second mint refused: one per wallet (got ${again})`);
+const xfer = await tryErr(() => dnaTx('transferFrom', [me, '0x000000000000000000000000000000000000dEaD', id]));
+assert(xfer === 'Soulbound()', `transfer refused (got ${xfer})`);
+const other = ethers.Wallet.createRandom().address;
+await read.send('anvil_setBalance', [other, '0xde0b6b3a7640000']); // 1 coin, so only the gate can refuse
+const gated = await tryErr(() => read.call({ from: other, to: st.dna, data: new ethers.Interface(C.DojoPassDNA.abi).encodeFunctionData('mint', []), value: ethers.parseEther('0.0001') }));
+assert(gated === 'NoDojoPass()', `wallet without a Dojo Pass refused (got ${gated})`);
 assert(d.uri === '', 'tokenURI empty before base URI');
-await F.setDnaBaseURI(ethers, C, signer, st, 'https://example.invalid/api/dojo-pass-dna/', log);
+await F.setDnaBaseURI(ethers, C, signer, st, 'https://example.invalid/api/dojo-pass/test/', log);
 d = await F.dnaStatus(ethers, C, read, st, me);
-assert(d.uri === 'https://example.invalid/api/dojo-pass-dna/1', `tokenURI = base + id (got ${d.uri})`);
-let underpaid = false;
-try { await signer.sendTransaction({ to: st.dna, data: new ethers.Interface(C.DojoPassDNA.abi).encodeFunctionData('mint', []), value: 1n }); } catch (e) { underpaid = F.explain(e); }
-assert(/^WrongMintPrice\(1, 100000000000000\)$/.test(underpaid), `wrong mint price refused as WrongMintPrice (got ${underpaid})`);
+assert(d.uri === `https://example.invalid/api/dojo-pass/test/${id}`, `tokenURI = base + uint160(holder) (got ${d.uri})`);
 await F.withdrawDna(ethers, C, signer, st, log);
 d = await F.dnaStatus(ethers, C, read, st, me);
 assert(d.fees === '0.0', `fees withdrawn (got ${d.fees})`);
