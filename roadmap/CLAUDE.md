@@ -33,11 +33,15 @@ Chainlink feed has the right `description()` and a recent `updatedAt`.
 - `BushidoFeeVault.absorbSurplus` stays owner/solver/rebalancer-only, so nobody can absorb a fill repayment before
   `settleFillFromBalance` uses it.
 - When a check fails, make one fix attempt; if it still fails, stop and report.
+- Public test keys (anvil/hardhat account 0 etc.) carry strangers' EIP-7702 delegations on public testnets
+  (code `0xef0100…`). On forks, `_safeMint`/receiver callbacks then run their delegate and can revert with no data:
+  `dryrun.mjs` clears it with `anvil_setCode`. A real burner with a 7702 delegate that lacks `onERC721Received`
+  will hit the same revert minting DojoPassDNA.
 - Public RPCs can be load-balanced, so the node answering the next call may not have seen the tx just confirmed
   (OP Sepolia "Seed + graduate" reverted live this way; forks have one node and can't reproduce it). The page's
   `send()` waits for the read RPC to reach the receipt's block and retries reverting gas estimates. Every revert is
   decoded against all contract ABIs, never shown as "unknown custom error".
-- Fork runs must cover every page step (1–5 and M1–M3), not just a subset.
+- Fork runs must cover every page step (1–5, M1–M3 and D1–D4), not just a subset.
 - Keep `npm audit` at 0. Pin exact versions (ethers is 6.17.0 in `solver/`, `testnet/` and the page's CDN script;
   keep all three in step). `contracts/.npmrc` sets `legacy-peer-deps=true`: Hyperlane's peer deps (ethers v5 tooling,
   elliptic) are never used to compile its Solidity and only add vulnerable packages.
