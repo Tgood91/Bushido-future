@@ -92,6 +92,23 @@
     <div class="row"><button id="m3" disabled>M3 · Buy with tUSDC at live price</button><input id="musd" type="number" min="1" step="1" value="10" aria-label="tUSDC to spend"></div>
   </div>
 
+  <div class="card">
+    <div class="label">Dojo Pass DNA · living soulbound pass</div>
+    <div class="sub" style="margin:0 0 6px">One per Dojo Pass holder, never transferable. Traits come from the base URI and evolve off-chain as you practise. On testnets D1 also deploys a stand-in Dojo Pass registry and gives you a pass.</div>
+    <div class="grid">
+      <div>Minted (all)</div><b id="dsupply">—</b>
+      <div>Mint price</div><b id="dprice">—</b>
+      <div>I hold a Dojo Pass</div><b id="dhas">—</b>
+      <div>My DNA pass</div><b id="dmine">—</b>
+      <div>Fees in contract</div><b id="dfees">—</b>
+      <div>My tokenURI</div><b id="duri" style="word-break:break-all">—</b>
+    </div>
+    <button id="d1" disabled>D1 · Deploy Dojo Pass DNA (+ test registry) + open minting</button>
+    <button id="d2" disabled>D2 · Mint my pass (pays the mint price)</button>
+    <div class="row"><button id="d3" disabled>D3 · Set base URI</button><input id="durl" type="url" style="width:55%" placeholder="https://…/" aria-label="base URI"></div>
+    <button id="d4" disabled>D4 · Withdraw mint fees to me (owner)</button>
+  </div>
+
   <div class="card"><div class="label">Contracts</div><div id="addrs">Nothing deployed yet.</div></div>
   <div class="card"><div class="label">Log</div><div id="log"></div></div>
   <button id="reset">Start over (forget saved addresses)</button>
@@ -120,7 +137,7 @@ const save = () => { try { localStorage.setItem(key(), JSON.stringify(st)); } ca
 const load = () => { try { st = JSON.parse(localStorage.getItem(key()) || '{}'); } catch { st = {}; } };
 function log(m, cls) { const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = `${new Date().toLocaleTimeString()}  ${m}`; $('log').prepend(d); }
 function showAddrs() {
-  const names = { usdc: 'TestUSDC (tUSDC)', vault: 'BushidoFeeVault', fwd: 'X402Forwarder (x402 payTo)', asset: `TestToken (${CHAIN.market?.symbol})`, oracle: 'ChainlinkFeedOracle (live price)', market: 'OracleSwap (25 bps)' };
+  const names = { usdc: 'TestUSDC (tUSDC)', vault: 'BushidoFeeVault', fwd: 'X402Forwarder (x402 payTo)', asset: `TestToken (${CHAIN.market?.symbol})`, oracle: 'ChainlinkFeedOracle (live price)', market: 'OracleSwap (25 bps)', dnaPass: 'TestDojoPass (registry stand-in)', dna: 'DojoPassDNA (soulbound)' };
   $('addrs').innerHTML = Object.entries(names).filter(([k]) => st[k]).map(([k, n]) => `<div>${n}: <a target="_blank" rel="noopener" href="${CHAIN.explorer}/address/${st[k]}">${st[k]}</a></div>`).join('') || 'Nothing deployed yet.';
 }
 const addParams = (c = CHAIN) => ({ chainId: c.hex, chainName: c.name, rpcUrls: [c.rpc], blockExplorerUrls: [c.explorer],
@@ -226,6 +243,15 @@ async function refresh() {
     $('mfees').textContent = m?.fees ? `${m.fees} tUSDC` : '—';
     Object.assign(ready, { m1: !!st.deployed && !st.marketReady, m2: !!m?.price && Number(m.bal) > 0, m3: !!m?.price });
   }
+  const d = st.dna ? await F.dnaStatus(ethers, C, read, st, me).catch(() => null) : null;
+  $('dsupply').textContent = d?.supply ?? '—';
+  $('dprice').textContent = d ? `${d.price} ${CHAIN.coin}` : '—';
+  $('dhas').textContent = d ? (d.hasPass ? 'yes' : 'no') : '—';
+  $('dmine').textContent = d ? (d.mine === '1' ? `#${d.id}` : 'not minted') : '—';
+  $('dfees').textContent = d ? `${d.fees} ${CHAIN.coin}` : '—';
+  $('duri').textContent = d?.mine === '1' ? (d.uri || '(base URI not set yet)') : '—';
+  const owner = d && d.owner.toLowerCase() === me.toLowerCase();
+  Object.assign(ready, { d1: !st.dnaOpen, d2: !!d && !d.paused && d.hasPass && d.mine === '0', d3: !!owner, d4: !!owner && d.raw.fees > 0n });
   for (const [b, on] of Object.entries(ready)) $(b).disabled = !on || busy;
 }
 async function run(label, fn) {
@@ -263,6 +289,10 @@ if (CHAIN.market) {
   $('m2').onclick = () => run('Sell', () => F.sellAsset(ethers, C, signer, st, $('mamt').value || '1', log));
   $('m3').onclick = () => run('Buy', () => F.buyAsset(ethers, C, signer, st, $('musd').value || '10', log));
 }
+$('d1').onclick = () => run('Dojo Pass DNA deploy', () => F.deployDna(ethers, C, signer, st, (m) => { log(m); save(); showAddrs(); }));
+$('d2').onclick = () => run('Dojo Pass DNA mint', () => F.mintDna(ethers, C, signer, st, (m) => { log(m); save(); }));
+$('d3').onclick = () => run('Set base URI', () => F.setDnaBaseURI(ethers, C, signer, st, $('durl').value.trim(), log));
+$('d4').onclick = () => run('Withdraw mint fees', () => F.withdrawDna(ethers, C, signer, st, log));
 let resetArmed = false; // two taps: some wallet browsers block confirm() pop-ups
 $('reset').onclick = () => {
   if (!resetArmed) { resetArmed = true; $('reset').textContent = 'Tap again to forget the saved addresses and redeploy'; setTimeout(() => { resetArmed = false; $('reset').textContent = 'Start over (forget saved addresses)'; }, 8000); return; }
