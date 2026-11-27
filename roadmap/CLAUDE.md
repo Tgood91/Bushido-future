@@ -45,3 +45,6 @@ Chainlink feed has the right `description()` and a recent `updatedAt`.
 - Keep `npm audit` at 0. Pin exact versions (ethers is 6.17.0 in `solver/`, `testnet/` and the page's CDN script;
   keep all three in step). `contracts/.npmrc` sets `legacy-peer-deps=true`: Hyperlane's peer deps (ethers v5 tooling,
   elliptic) are never used to compile its Solidity and only add vulnerable packages.
+- Open the burner page only from `https://solving.onrender.com` (our origin, and the only one the faucet accepts).
+  Don't suggest or commit raw.githack.com / rawcdn / raw.githubusercontent links to it: a third party would serve the
+  page the wallet signs on, and a branch link changes under you. Use `?chain=local` on anvil for local testing.
