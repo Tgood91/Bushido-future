@@ -73,6 +73,34 @@ DEPLOYER=$D forge script script/DeployOracleMarket.s.sol:DeployOracleMarket \
 ```
 Fork test (real state, no deploy): `BASE_RPC_URL=https://mainnet.base.org forge test --match-path 'test/fork/*' -vvvv`.
 
+## DEXes: `DeployDexV2` and `DeployDexV3` (test token ↔ tUSDC at the live price)
+Two unaudited, testnet-only AMMs. `DeployDexV2` deploys `DexFactory` + `DexRouter` and seeds a constant-product
+pair. `DeployDexV3` deploys `DexV3Factory` + `DexV3Router`, then creates a 0.25% pool and gives `DEPLOYER` two
+positions: one full range and one about ±10% around the price (`RANGE_TICKS`, default 1000). The V3 contracts are
+GPL-2.0-or-later because their math is ported from Uniswap v3-core.
+
+Pools start at the **live** price: `ORACLE` (an existing `IPriceOracle`) or `FEED` (the chain's Chainlink feed from
+`testnet/chains.json`, which deploys a `ChainlinkFeedOracle` with `MAX_STALENESS`). Each script checks the seeded
+pool against the oracle before finishing. They refuse non-testnet chain ids; set `ALLOW_FORK=1` for an anvil mainnet fork.
+
+| Env | Default | |
+|---|---|---|
+| `DEPLOYER` | required | signer address; sign with `--account`/`--ledger` (`--unlocked` on anvil), never a raw key |
+| `FEED` or `ORACLE` | one required | live price source |
+| `TOKEN`, `USDC` | new `TestToken` / `MockUSDC` | existing test tokens (18 / 6 dp); the deployer's shortfall is minted |
+| `SEED_TOKENS` | 100 | whole test tokens seeded; the tUSDC side is sized from the price |
+| `TOKEN_NAME`, `TOKEN_SYMBOL` | `Bushido Test ETH`, `tETH` | for a new test token (e.g. `tAVAX` on Fuji) |
+| `FEE` (V3) | 2500 | 100, 500, 2500, 3000 or 10000 |
+
+```bash
+cd contracts
+# Base Sepolia: simulate first, then add --account <name> --broadcast
+DEPLOYER=<addr> USDC=<tUSDC> FEED=0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1 \
+  forge script script/DeployDexV3.s.sol:DeployDexV3 --rpc-url https://sepolia.base.org
+# Arbitrum Sepolia: FEED=0xd30e2101a97dcbAeBCBC04F14C3f624E67A35165 --rpc-url https://sepolia-rollup.arbitrum.io/rpc
+# V2: same env, script/DeployDexV2.s.sol:DeployDexV2
+```
+
 ## Cross-chain inventory: `WarpInventoryBridge` (Hyperlane, open source)
 One vault per EVM chain. Inventory moves between them over a **Hyperlane warp route**: open source (Apache-2.0)
 and permissionless, so we deploy our own routes for our own test tokens on any EVM chain.
