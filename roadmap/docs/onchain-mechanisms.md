@@ -82,12 +82,20 @@ GPL-2.0-or-later because their math is ported from Uniswap v3-core.
 Pools start at the **live** price: `ORACLE` (an existing `IPriceOracle`) or `FEED` (the chain's Chainlink feed from
 `testnet/chains.json`, which deploys a `ChainlinkFeedOracle` with `MAX_STALENESS`). Each script checks the seeded
 pool against the oracle before finishing. They refuse non-testnet chain ids; set `ALLOW_FORK=1` for an anvil mainnet fork.
+On any non-testnet chain there are **no mocks**: `TOKEN` and `USDC` must be the real tokens (Base WETH
+`0x4200…0006`, USDC `0x8335…2913`), nothing is deployed or minted in their place (`MocksNotAllowed`), and `DEPLOYER`
+must already hold the whole seed (`InsufficientBalance`).
+
+`test/fork/DexFork.t.sol` runs both DEXes on a Base mainnet fork with no mocks: real WETH, real USDC bought through
+Uniswap's WETH/USDC pool, and the live Chainlink ETH/USD feed. It checks k on V2, liquidity and backing on V3, that the
+V3 start price agrees with Uniswap's, and the no-mock rules above. CI runs it in the "Fork test against real Base
+prices" step.
 
 | Env | Default | |
 |---|---|---|
 | `DEPLOYER` | required | signer address; sign with `--account`/`--ledger` (`--unlocked` on anvil), never a raw key |
 | `FEED` or `ORACLE` | one required | live price source |
-| `TOKEN`, `USDC` | new `TestToken` / `MockUSDC` | existing test tokens (18 / 6 dp); the deployer's shortfall is minted |
+| `TOKEN`, `USDC` | testnets: new `TestToken` / `MockUSDC`; elsewhere: required | 18 / 6 dp; on testnets the deployer's shortfall is minted, elsewhere never |
 | `SEED_TOKENS` | 100 | whole test tokens seeded; the tUSDC side is sized from the price |
 | `TOKEN_NAME`, `TOKEN_SYMBOL` | `Bushido Test ETH`, `tETH` | for a new test token (e.g. `tAVAX` on Fuji) |
 | `FEE` (V3) | 2500 | 100, 500, 2500, 3000 or 10000 |

@@ -25,7 +25,10 @@ interface ITestToken {
 ///           TOKEN_NAME, TOKEN_SYMBOL   for a new test token (default "Bushido Test ETH" / "tETH")
 ///           SEED_TOKENS   whole test tokens to seed (default 100); the tUSDC side is sized from the price
 ///           ALLOW_FORK=1  also run on a mainnet chain id (anvil forks keep the forked chain id)
-///         Seeding mints the shortfall to DEPLOYER, so TOKEN/USDC must be mintable test tokens.
+///         On a testnet, seeding mints the shortfall to DEPLOYER, so TOKEN/USDC must be mintable test tokens.
+///         On any other chain there are NO mocks: TOKEN and USDC must be the real tokens (e.g. Base WETH
+///         0x4200000000000000000000000000000000000006, USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913), nothing is
+///         deployed or minted in their place, and DEPLOYER must already hold the whole seed.
 abstract contract DexSeed {
     struct Market {
         address deployer;
@@ -41,6 +44,9 @@ abstract contract DexSeed {
     error NoPriceSource();
     error BadDecimals(address token);
     error ZeroPrice();
+    error MocksNotAllowed(uint256 chainId);
+    error NotAContract(address token);
+    error InsufficientBalance(address token, uint256 balance, uint256 needed);
 
     /// @dev Reads env and refuses mainnets. Call before startBroadcast.
     function _readEnv() internal returns (Market memory m) {
@@ -63,35 +69,48 @@ abstract contract DexSeed {
         (m.px,) = m.oracle.price(); // reverts if the feed is stale or bad
         if (m.px == 0) revert ZeroPrice();
 
-        if (m.token == address(0)) {
-            m.token = address(
-                new TestToken(
-                    vm.envOr("TOKEN_NAME", string("Bushido Test ETH")), vm.envOr("TOKEN_SYMBOL", string("tETH")), 18
-                )
-            );
+        bool testnet = _isTestnet();
+        if (m.token == address(0) || m.usdc == address(0)) {
+            // mock tokens exist only on testnets: never stand them in for real assets
+            if (!testnet) revert MocksNotAllowed(block.chainid);
+            if (m.token == address(0)) {
+                m.token = address(
+                    new TestToken(
+                        vm.envOr("TOKEN_NAME", string("Bushido Test ETH")), vm.envOr("TOKEN_SYMBOL", string("tETH")), 18
+                    )
+                );
+            }
+            if (m.usdc == address(0)) m.usdc = address(new MockUSDC());
         }
-        if (m.usdc == address(0)) m.usdc = address(new MockUSDC());
+        if (m.token.code.length == 0) revert NotAContract(m.token);
+        if (m.usdc.code.length == 0) revert NotAContract(m.usdc);
         if (ITestToken(m.token).decimals() != 18) revert BadDecimals(m.token);
         if (ITestToken(m.usdc).decimals() != 6) revert BadDecimals(m.usdc);
 
         m.seedUsdc = (m.seedToken * m.px) / 1e18;
-        _fund(m.token, m.deployer, m.seedToken);
-        _fund(m.usdc, m.deployer, m.seedUsdc);
+        _fund(m.token, m.deployer, m.seedToken, testnet);
+        _fund(m.usdc, m.deployer, m.seedUsdc, testnet);
     }
 
-    function _fund(address token, address to, uint256 amount) internal {
+    /// @dev Testnets mint the shortfall; anywhere else the deployer must already hold it (real tokens can't be minted).
+    function _fund(address token, address to, uint256 amount, bool testnet) internal {
         uint256 bal = ITestToken(token).balanceOf(to);
-        if (bal < amount) ITestToken(token).mint(to, amount - bal);
+        if (bal >= amount) return;
+        if (!testnet) revert InsufficientBalance(token, bal, amount);
+        ITestToken(token).mint(to, amount - bal);
     }
 
-    /// @dev Testnets from testnet/chains.json plus local anvil. Mainnet forks need ALLOW_FORK=1.
-    function _requireTestnet() internal {
+    /// @dev Testnets from testnet/chains.json plus local anvil.
+    function _isTestnet() internal view returns (bool) {
         uint256 id = block.chainid;
-        if (
-            id == 84532 || id == 11155111 || id == 421614 || id == 11155420 || id == 1301 || id == 59141
-                || id == 80002 || id == 97 || id == 43113 || id == 10143 || id == 31337
-        ) return;
+        return id == 84532 || id == 11155111 || id == 421614 || id == 11155420 || id == 1301 || id == 59141
+            || id == 80002 || id == 97 || id == 43113 || id == 10143 || id == 31337;
+    }
+
+    /// @dev Mainnet chain ids (and anvil forks of them) need ALLOW_FORK=1.
+    function _requireTestnet() internal {
+        if (_isTestnet()) return;
         if (vm.envOr("ALLOW_FORK", uint256(0)) == 1) return;
-        revert NotATestnet(id);
+        revert NotATestnet(block.chainid);
     }
 }
