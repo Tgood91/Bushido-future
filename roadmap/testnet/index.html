@@ -2,118 +2,306 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bushido Vault Testnet</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0908">
+<title>Bushido Dojo · Testnet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0B0C0E; --card:#121418; --gold:#E6B86A; --text:#E5D3B3; --muted:#A38F6D; --ok:#34D399; --bad:#F87171; --line:rgba(200,157,84,.45); }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.5 'Courier New',monospace; }
-  main { max-width:720px; margin:0 auto; padding:16px; }
-  h1 { color:var(--gold); font-size:20px; letter-spacing:.12em; margin:8px 0 4px; }
-  .sub { color:var(--muted); font-size:12px; margin-bottom:16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; }
-  .label { color:var(--gold); font-size:11px; letter-spacing:.12em; text-transform:uppercase; font-weight:bold; margin-bottom:6px; }
-  button { width:100%; margin:4px 0; padding:12px; background:#16191F; color:var(--gold); border:1px solid var(--line); border-radius:6px; font:bold 14px 'Courier New',monospace; text-align:left; }
-  button:disabled { opacity:.4; }
-  .row { display:flex; gap:8px; align-items:center; }
-  .row input { width:90px; padding:10px; background:#07080A; color:var(--text); border:1px solid var(--line); border-radius:6px; font:14px 'Courier New',monospace; }
-  .grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; }
-  .grid b { color:#fff; }
-  #addrs a { color:var(--gold); word-break:break-all; }
-  #who { word-break:break-all; }
-  #log { background:#07080A; border:1px solid var(--line); border-radius:6px; padding:10px; font-size:12px; max-height:320px; overflow:auto; }
-  .addnet { text-align:center; border-color:var(--gold); margin-bottom:12px; }
-  .netrow { display:flex; align-items:center; gap:8px; border-bottom:1px solid rgba(200,157,84,.15); padding:4px 0; }
-  .netrow .nm { flex:1; min-width:0; } .netrow .nm small { color:var(--muted); display:block; word-break:break-all; }
-  .netrow button { width:auto; margin:0; padding:8px 12px; white-space:nowrap; }
+  /* Edo-period armor palette: black urushi lacquer, gold leaf, lotus, vermilion lacing (odoshi). */
+  :root {
+    --urushi:#0b0908; --lacquer:#15110f; --plate:#1c1714; --plate2:#241d18;
+    --gold:#c9a24a; --gold-hi:#ecd08a; --gold-lo:#8a6a2a;
+    --lotus:#e3a9b7; --lotus-deep:#b86a80; --lotus-pale:#f6dde3;
+    --shu:#b5341f; --washi:#efe4cf; --muted:#a8977c;
+    --ok:#9fc98a; --bad:#e5786a;
+    --line:rgba(201,162,74,.38); --line-soft:rgba(201,162,74,.16);
+    --serif:'Shippori Mincho','Hiragino Mincho ProN','Yu Mincho',Georgia,serif;
+    --sans:'Noto Sans JP',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --mono:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body {
+    margin:0; color:var(--washi); font:15px/1.55 var(--sans);
+    background:
+      radial-gradient(120% 60% at 50% -10%, rgba(201,162,74,.14), transparent 60%),
+      radial-gradient(80% 40% at 100% 100%, rgba(184,106,128,.10), transparent 60%),
+      var(--urushi);
+    min-height:100vh;
+  }
+  a { color:var(--gold-hi); }
+  main { max-width:640px; margin:0 auto; padding:0 14px calc(28px + env(safe-area-inset-bottom)); }
+
+  /* ---------- crest header ---------- */
+  header.crest { text-align:center; padding:22px 0 10px; position:relative; }
+  header.crest svg { width:68px; height:68px; display:block; margin:0 auto 6px; filter:drop-shadow(0 0 12px rgba(227,169,183,.25)); }
+  header.crest h1 { margin:0; font:800 26px/1.1 var(--serif); letter-spacing:.14em; color:var(--gold-hi);
+    background:linear-gradient(180deg,#f6e2a6 0%,#c9a24a 55%,#8a6a2a 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  header.crest .jp { font:700 13px var(--serif); color:var(--lotus); letter-spacing:.5em; margin-top:4px; }
+  header.crest .net { display:inline-flex; gap:6px; align-items:center; margin-top:10px; padding:4px 12px; border:1px solid var(--line);
+    border-radius:999px; font-size:12px; color:var(--gold); background:rgba(0,0,0,.35); }
+  header.crest .net::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--lotus); box-shadow:0 0 8px var(--lotus); }
+  .cord { height:6px; margin:14px 0 16px; border-radius:3px;
+    background:repeating-linear-gradient(90deg,var(--shu) 0 14px,#7e2214 14px 16px,var(--gold-lo) 16px 18px); opacity:.85; }
+
+  /* ---------- armor plates (cards) ---------- */
+  .plate { position:relative; background:linear-gradient(180deg,var(--plate2),var(--plate) 40%,var(--lacquer));
+    border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px;
+    box-shadow:inset 0 1px 0 rgba(236,208,138,.12), 0 8px 24px rgba(0,0,0,.45); }
+  .plate::before { /* lamellar kozane texture */ content:''; position:absolute; inset:0; border-radius:14px; pointer-events:none; opacity:.5;
+    background:repeating-linear-gradient(0deg,transparent 0 17px,rgba(201,162,74,.06) 17px 18px); }
+  .plate > * { position:relative; }
+  .ttl { display:flex; align-items:center; gap:8px; margin:0 0 10px; font:700 13px var(--serif); letter-spacing:.18em; text-transform:uppercase; color:var(--gold); }
+  .ttl .mon { font-size:18px; color:var(--lotus); letter-spacing:0; text-transform:none; }
+  .ttl::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,var(--line),transparent); }
+  .sub { color:var(--muted); font-size:13px; margin:0 0 10px; }
+
+  /* ---------- buttons ---------- */
+  button { font:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .btn { width:100%; margin:5px 0; padding:13px 14px; border-radius:10px; text-align:center; font:700 15px var(--serif); letter-spacing:.06em;
+    color:#1a1206; border:1px solid #f0d58e; background:linear-gradient(180deg,#f2d98f,#c9a24a 60%,#a17f35);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.45), 0 4px 14px rgba(201,162,74,.25); }
+  .btn.ghost { color:var(--gold-hi); background:rgba(0,0,0,.35); border-color:var(--line); box-shadow:none; font-family:var(--sans); font-weight:500; font-size:14px; }
+  .btn.lotus { color:#2a0f17; border-color:var(--lotus-pale); background:linear-gradient(180deg,var(--lotus-pale),var(--lotus) 55%,var(--lotus-deep)); box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 4px 14px rgba(227,169,183,.22); }
+  button:disabled { opacity:.38; filter:saturate(.4); cursor:not-allowed; }
+  button:not(:disabled):active { transform:translateY(1px); }
+
+  /* steps: numbered with kanji, like a scroll of drills */
+  .step { display:flex; align-items:center; gap:12px; width:100%; margin:6px 0; padding:11px 12px; text-align:left; border-radius:10px;
+    background:rgba(0,0,0,.38); color:var(--washi); border:1px solid var(--line-soft); border-left:3px solid var(--shu); }
+  .step .kn { flex:none; width:34px; height:34px; display:grid; place-items:center; border-radius:50%; font:800 17px var(--serif);
+    color:#1a1206; background:radial-gradient(circle at 35% 30%,#f6e2a6,#c9a24a 60%,#8a6a2a); box-shadow:0 0 0 2px rgba(0,0,0,.6),0 0 0 3px var(--gold-lo); }
+  .step b { display:block; font:700 15px var(--serif); color:var(--gold-hi); }
+  .step small { display:block; color:var(--muted); font-size:12px; }
+  .step:not(:disabled) { border-color:var(--line); border-left-color:var(--lotus); }
+  .step:not(:disabled) .kn { animation:glow 2.4s ease-in-out infinite; }
+  @keyframes glow { 50% { box-shadow:0 0 0 2px rgba(0,0,0,.6),0 0 0 3px var(--gold),0 0 14px rgba(236,208,138,.55); } }
+  @media (prefers-reduced-motion:reduce) { .step:not(:disabled) .kn { animation:none; } }
+  .row { display:flex; gap:8px; align-items:stretch; }
+  .row .step { flex:1; }
+  input { min-width:0; width:96px; padding:10px; border-radius:10px; background:#070605; color:var(--washi); border:1px solid var(--line); font:15px var(--mono); }
+  input:focus, button:focus-visible { outline:2px solid var(--lotus); outline-offset:2px; }
+  .row input.wide { width:auto; flex:1; }
+
+  /* stat ledger */
+  .ledger { display:grid; grid-template-columns:auto minmax(0,1fr); gap:0; margin:4px 0 8px; border-top:1px solid var(--line-soft); }
+  .ledger > * { padding:7px 2px; border-bottom:1px solid var(--line-soft); font-size:13px; }
+  .ledger > div { color:var(--muted); white-space:nowrap; padding-right:12px; }
+  .ledger > b { color:var(--washi); font:600 13px var(--mono); text-align:right; word-break:break-all; }
+
+  /* wallet seal */
+  .seal { display:flex; align-items:center; gap:12px; margin-top:8px; }
+  .seal .hanko { flex:none; width:44px; height:44px; border-radius:8px; display:grid; place-items:center; font:800 20px var(--serif); color:var(--washi);
+    background:var(--shu); box-shadow:inset 0 0 0 2px rgba(255,255,255,.15),0 0 0 1px #000; transform:rotate(-4deg); }
+  .seal .id { min-width:0; }
+  #who { font:11px var(--mono); color:var(--washi); word-break:break-all; }
+  .seal .bal { font:700 18px var(--serif); color:var(--gold-hi); }
+  .seal .bal small { font:12px var(--sans); color:var(--muted); }
+
+  /* tabs (gates) */
+  nav.gates { position:sticky; top:0; z-index:5; display:grid; grid-template-columns:repeat(4,1fr); gap:6px; padding:10px 0; margin-bottom:6px;
+    background:linear-gradient(180deg,var(--urushi) 70%,rgba(11,9,8,0)); }
+  nav.gates button { padding:8px 4px 7px; border-radius:10px; background:rgba(0,0,0,.4); color:var(--muted); border:1px solid var(--line-soft); }
+  nav.gates button span { display:block; font:800 18px var(--serif); line-height:1.1; }
+  nav.gates button em { display:block; font:500 11px var(--sans); font-style:normal; letter-spacing:.06em; }
+  nav.gates button[aria-selected="true"] { color:var(--gold-hi); border-color:var(--gold); background:linear-gradient(180deg,rgba(201,162,74,.22),rgba(0,0,0,.4)); }
+  nav.gates button[aria-selected="true"] span { color:var(--lotus); }
+  section[role="tabpanel"][hidden] { display:none; }
+
+  /* networks */
+  #chainlist { font-size:13px; color:var(--muted); line-height:1.9; }
+  #chainlist b { color:var(--lotus); }
+  .netrow { display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--line-soft); padding:7px 0; }
+  .netrow .nm { flex:1; min-width:0; font-size:14px; }
+  .netrow .nm small { color:var(--muted); display:block; word-break:break-all; font:11px var(--mono); }
+  .netrow button { flex:none; padding:7px 12px; border-radius:999px; background:transparent; color:var(--gold-hi); border:1px solid var(--line); font-size:13px; }
+
+  .nomarket { display:none; text-align:center; color:var(--muted); padding:20px 8px; }
+  #mcard[hidden] + .nomarket { display:block; }
+
+  /* records + log */
+  details.plate > summary { list-style:none; cursor:pointer; }
+  details.plate > summary::-webkit-details-marker { display:none; }
+  details.plate > summary .ttl { margin:0; }
+  details.plate[open] > summary .ttl { margin-bottom:10px; }
+  #addrs { font-size:13px; } #addrs div { padding:5px 0; border-bottom:1px solid var(--line-soft); } #addrs a { word-break:break-all; font-family:var(--mono); font-size:12px; }
+  #log { background:#060504; border:1px solid var(--line-soft); border-radius:10px; padding:10px; font:12px/1.5 var(--mono); max-height:300px; overflow:auto; color:#d9ccb4; }
+  #log div { padding:2px 0; }
+  #dripout { font-size:13px; margin-top:6px; }
   .ok { color:var(--ok); } .bad { color:var(--bad); }
+  footer { text-align:center; color:var(--muted); font:12px var(--serif); letter-spacing:.3em; padding:10px 0 0; }
+  #reset { margin-top:4px; }
 </style>
 </head>
 <body>
 <main>
-  <h1>⛩️ BUSHIDO VAULT · <span id="netname">Base Sepolia</span></h1>
-  <div class="sub" id="chainlist"></div>
-  <button id="addnet" class="addnet">➕ Add <span id="addname">this network</span> to my wallet</button>
+  <header class="crest">
+    <!-- Original lotus crest (mon): gold ring, lotus petals -->
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6e2a6"/><stop offset=".6" stop-color="#c9a24a"/><stop offset="1" stop-color="#8a6a2a"/></linearGradient>
+        <linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6dde3"/><stop offset="1" stop-color="#b86a80"/></linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="46" fill="#0b0908" stroke="url(#g)" stroke-width="4"/>
+      <circle cx="50" cy="50" r="39" fill="none" stroke="#c9a24a" stroke-opacity=".35" stroke-width="1"/>
+      <g fill="url(#p)" stroke="#0b0908" stroke-width="1.5">
+        <path d="M50 22 C60 36 60 52 50 66 C40 52 40 36 50 22Z"/>
+        <path d="M50 66 C38 62 28 50 26 36 C38 40 47 50 50 66Z"/>
+        <path d="M50 66 C62 62 72 50 74 36 C62 40 53 50 50 66Z"/>
+        <path d="M50 68 C36 70 24 64 18 54 C30 52 42 58 50 68Z"/>
+        <path d="M50 68 C64 70 76 64 82 54 C70 52 58 58 50 68Z"/>
+      </g>
+      <path d="M30 74 Q50 82 70 74" fill="none" stroke="url(#g)" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+    <h1>BUSHIDO DOJO</h1>
+    <div class="jp">武 士 道</div>
+    <div class="net"><span id="netname">Base Sepolia</span> · testnet</div>
+  </header>
+  <div class="cord" aria-hidden="true"></div>
 
-  <div class="card">
-    <div class="label">Networks · add any of them to your wallet</div>
-    <div id="netlist"></div>
-    <button id="addall">➕ Add all networks</button>
+  <!-- wallet: the burner that signs everything -->
+  <div class="plate">
+    <div class="ttl"><span class="mon">印</span> Burner wallet</div>
+    <button id="connect" class="btn">Connect burner</button>
+    <div class="seal">
+      <div class="hanko" aria-hidden="true">侍</div>
+      <div class="id">
+        <div id="who">—</div>
+        <div class="bal"><span id="bal">—</span> <small id="balname">ETH</small></div>
+      </div>
+    </div>
   </div>
-  <div class="sub">Testnet only. Deploys a test token (tUSDC), BushidoFeeVault and X402Forwarder from your burner, then runs an
-    x402 payment → flush → 70/10/20 split → seed → graduate. Open this page in the browser inside the wallet app that holds your burner.</div>
 
-  <div class="card">
-    <div class="label">Wallet</div>
-    <button id="connect">Connect burner</button>
-    <div>Address: <span id="who">—</span></div>
-    <div><span id="balname">ETH</span>: <span id="bal">—</span></div>
-  </div>
-
-  <div class="card">
-    <div class="label">Faucet · free testnet gas</div>
-    <button id="drip" disabled>💧 Get 0.05 ETH on Sepolia + Base Sepolia</button>
-    <div class="sub" id="faucetinfo" style="margin:6px 0 0">Connect your burner first; it doesn't need gas to connect.</div>
+  <div class="plate">
+    <div class="ttl"><span class="mon">水</span> Faucet · free testnet gas</div>
+    <button id="drip" class="btn lotus" disabled>💧 Get 0.05 ETH on Sepolia + Base Sepolia</button>
+    <div class="sub" id="faucetinfo" style="margin:8px 0 0">Connect your burner first; it doesn't need gas to connect.</div>
     <div id="dripout"></div>
   </div>
 
-  <div class="card">
-    <div class="label">Steps</div>
-    <button id="b1" disabled>1 · Deploy tUSDC + vault + forwarder</button>
-    <button id="b2" disabled>2 · Mint 10,000 tUSDC to me</button>
-    <div class="row"><button id="b3" disabled>3 · Pay x402 jobs (sign + settle)</button><input id="jobs" type="number" min="1" value="100" aria-label="jobs"></div>
-    <button id="b4" disabled>4 · Flush forwarder → vault</button>
-    <button id="b5" disabled>5 · Seed to 6,250 + graduate to SELF_SOLVE</button>
-  </div>
+  <nav class="gates" role="tablist" aria-label="Sections">
+    <button role="tab" data-tab="dna" aria-selected="true"><span>道</span><em>Dojo Pass</em></button>
+    <button role="tab" data-tab="vault" aria-selected="false"><span>金</span><em>Vault</em></button>
+    <button role="tab" data-tab="market" aria-selected="false"><span>市</span><em>Market</em></button>
+    <button role="tab" data-tab="nets" aria-selected="false"><span>道標</span><em>Networks</em></button>
+  </nav>
 
-  <div class="card">
-    <div class="label">Vault state</div>
-    <div class="grid">
-      <div>Phase</div><b id="phase">—</b>
-      <div>My tUSDC</div><b id="tbal">—</b>
-      <div>Forwarder pending</div><b id="pending">—</b>
-      <div>Total x402 collected</div><b id="x402">—</b>
-      <div>Inventory (70%)</div><b id="inv">—</b>
-      <div>Reserve (10%)</div><b id="res">—</b>
-      <div>Ops (20%)</div><b id="ops">—</b>
+  <!-- 道 Dojo Pass DNA -->
+  <section role="tabpanel" data-panel="dna">
+    <div class="plate">
+      <div class="ttl"><span class="mon">蓮</span> Dojo Pass DNA · living soulbound pass</div>
+      <p class="sub">One per Dojo Pass holder, never transferable. Traits come from the base URI and evolve off-chain as you practise. On testnets D1 also deploys a stand-in Dojo Pass registry and gives you a pass.</p>
+      <div class="ledger">
+        <div>Minted (all)</div><b id="dsupply">—</b>
+        <div>Mint price</div><b id="dprice">—</b>
+        <div>I hold a Dojo Pass</div><b id="dhas">—</b>
+        <div>My DNA pass</div><b id="dmine">—</b>
+        <div>Fees in contract</div><b id="dfees">—</b>
+        <div>My tokenURI</div><b id="duri">—</b>
+      </div>
+      <button id="d1" class="step" disabled><span class="kn">一</span><span><b>D1 · Deploy Dojo Pass DNA</b><small>+ test registry, then open minting (3 confirms)</small></span></button>
+      <button id="d2" class="step" disabled><span class="kn">二</span><span><b>D2 · Mint my pass</b><small>pays the mint price</small></span></button>
+      <div class="row">
+        <button id="d3" class="step" disabled><span class="kn">三</span><span><b>D3 · Set base URI</b><small>trait service address</small></span></button>
+      </div>
+      <input id="durl" class="wide" type="url" style="width:100%;margin:2px 0 6px" placeholder="https://…/" aria-label="base URI">
+      <button id="d4" class="step" disabled><span class="kn">四</span><span><b>D4 · Withdraw mint fees</b><small>to me, the owner</small></span></button>
     </div>
-  </div>
+  </section>
 
-  <div class="card" id="mcard" hidden>
-    <div class="label">Live-priced market · <span id="msym"></span> (Chainlink <span id="mfeed"></span>)</div>
-    <div class="grid">
-      <div>Live price</div><b id="mpx">—</b>
-      <div>Feed updated</div><b id="mage">—</b>
-      <div>My <span class="msym2"></span></div><b id="mbal">—</b>
-      <div>Execution fees to vault</div><b id="mfees">—</b>
+  <!-- 金 Vault -->
+  <section role="tabpanel" data-panel="vault" hidden>
+    <div class="plate">
+      <div class="ttl"><span class="mon">金</span> Vault drills</div>
+      <p class="sub">Testnet only. Deploys a test token (tUSDC), BushidoFeeVault and X402Forwarder from your burner, then runs an x402 payment → flush → 70/10/20 split → seed → graduate.</p>
+      <button id="b1" class="step" disabled><span class="kn">一</span><span><b>Deploy tUSDC + vault + forwarder</b></span></button>
+      <button id="b2" class="step" disabled><span class="kn">二</span><span><b>Mint 10,000 tUSDC to me</b></span></button>
+      <div class="row">
+        <button id="b3" class="step" disabled><span class="kn">三</span><span><b>Pay x402 jobs</b><small>sign + settle</small></span></button>
+        <input id="jobs" type="number" min="1" value="100" aria-label="jobs">
+      </div>
+      <button id="b4" class="step" disabled><span class="kn">四</span><span><b>Flush forwarder → vault</b></span></button>
+      <button id="b5" class="step" disabled><span class="kn">五</span><span><b>Seed to 6,250 + graduate</b><small>to SELF_SOLVE</small></span></button>
     </div>
-    <button id="m1" disabled>M1 · Deploy <span class="msym2"></span> + live oracle + market (25 bps fee)</button>
-    <div class="row"><button id="m2" disabled>M2 · Sell <span class="msym2"></span> at live price</button><input id="mamt" type="number" min="0" step="0.1" value="1" aria-label="amount to sell"></div>
-    <div class="row"><button id="m3" disabled>M3 · Buy with tUSDC at live price</button><input id="musd" type="number" min="1" step="1" value="10" aria-label="tUSDC to spend"></div>
-  </div>
-
-  <div class="card">
-    <div class="label">Dojo Pass DNA · living soulbound pass</div>
-    <div class="sub" style="margin:0 0 6px">One per Dojo Pass holder, never transferable. Traits come from the base URI and evolve off-chain as you practise. On testnets D1 also deploys a stand-in Dojo Pass registry and gives you a pass.</div>
-    <div class="grid">
-      <div>Minted (all)</div><b id="dsupply">—</b>
-      <div>Mint price</div><b id="dprice">—</b>
-      <div>I hold a Dojo Pass</div><b id="dhas">—</b>
-      <div>My DNA pass</div><b id="dmine">—</b>
-      <div>Fees in contract</div><b id="dfees">—</b>
-      <div>My tokenURI</div><b id="duri" style="word-break:break-all">—</b>
+    <div class="plate">
+      <div class="ttl"><span class="mon">倉</span> Vault state</div>
+      <div class="ledger">
+        <div>Phase</div><b id="phase">—</b>
+        <div>My tUSDC</div><b id="tbal">—</b>
+        <div>Forwarder pending</div><b id="pending">—</b>
+        <div>Total x402 collected</div><b id="x402">—</b>
+        <div>Inventory (70%)</div><b id="inv">—</b>
+        <div>Reserve (10%)</div><b id="res">—</b>
+        <div>Ops (20%)</div><b id="ops">—</b>
+      </div>
     </div>
-    <button id="d1" disabled>D1 · Deploy Dojo Pass DNA (+ test registry) + open minting</button>
-    <button id="d2" disabled>D2 · Mint my pass (pays the mint price)</button>
-    <div class="row"><button id="d3" disabled>D3 · Set base URI</button><input id="durl" type="url" style="width:55%" placeholder="https://…/" aria-label="base URI"></div>
-    <button id="d4" disabled>D4 · Withdraw mint fees to me (owner)</button>
-  </div>
+  </section>
 
-  <div class="card"><div class="label">Contracts</div><div id="addrs">Nothing deployed yet.</div></div>
-  <div class="card"><div class="label">Log</div><div id="log"></div></div>
-  <button id="reset">Start over (forget saved addresses)</button>
+  <!-- 市 Market -->
+  <section role="tabpanel" data-panel="market" hidden>
+    <div class="plate" id="mcard" hidden>
+      <div class="ttl"><span class="mon">市</span> Live-priced market · <span id="msym"></span></div>
+      <p class="sub">Chainlink <span id="mfeed"></span> · 25 bps execution fee to the vault.</p>
+      <div class="ledger">
+        <div>Live price</div><b id="mpx">—</b>
+        <div>Feed updated</div><b id="mage">—</b>
+        <div>My <span class="msym2"></span></div><b id="mbal">—</b>
+        <div>Execution fees to vault</div><b id="mfees">—</b>
+      </div>
+      <button id="m1" class="step" disabled><span class="kn">一</span><span><b>Deploy <span class="msym2"></span> + live oracle + market</b><small>25 bps fee</small></span></button>
+      <div class="row">
+        <button id="m2" class="step" disabled><span class="kn">二</span><span><b>Sell <span class="msym2"></span></b><small>at live price</small></span></button>
+        <input id="mamt" type="number" min="0" step="0.1" value="1" aria-label="amount to sell">
+      </div>
+      <div class="row">
+        <button id="m3" class="step" disabled><span class="kn">三</span><span><b>Buy with tUSDC</b><small>at live price</small></span></button>
+        <input id="musd" type="number" min="1" step="1" value="10" aria-label="tUSDC to spend">
+      </div>
+    </div>
+    <div class="plate nomarket">No live-priced market on this network. Switch networks under 道標 Networks (Avalanche Fuji has one).</div>
+  </section>
+
+  <!-- 道標 Networks -->
+  <section role="tabpanel" data-panel="nets" hidden>
+    <div class="plate">
+      <div class="ttl"><span class="mon">標</span> Network</div>
+      <div id="chainlist"></div>
+      <button id="addnet" class="btn">➕ Add <span id="addname">this network</span> to my wallet</button>
+    </div>
+    <div class="plate">
+      <div class="ttl"><span class="mon">鎖</span> Add any network to your wallet</div>
+      <div id="netlist"></div>
+      <button id="addall" class="btn ghost">➕ Add all networks</button>
+    </div>
+  </section>
+
+  <details class="plate">
+    <summary><div class="ttl"><span class="mon">巻</span> Contracts</div></summary>
+    <div id="addrs">Nothing deployed yet.</div>
+  </details>
+  <details class="plate" open>
+    <summary><div class="ttl"><span class="mon">記</span> Log</div></summary>
+    <div id="log"></div>
+  </details>
+  <button id="reset" class="btn ghost">Start over (forget saved addresses)</button>
+  <footer>義 · 勇 · 仁 · 礼 · 誠 · 名誉 · 忠義</footer>
 </main>
-
+<script>
+// Gates (tabs). Every panel stays in the DOM, so the page script reads and updates all of them.
+(() => {
+  const tabs = [...document.querySelectorAll('nav.gates [role=tab]')];
+  const show = (name) => {
+    for (const t of tabs) t.setAttribute('aria-selected', String(t.dataset.tab === name));
+    for (const p of document.querySelectorAll('[role=tabpanel]')) p.hidden = p.dataset.panel !== name;
+    try { localStorage.setItem('bushido-gate', name); } catch {}
+  };
+  tabs.forEach((t) => (t.onclick = () => show(t.dataset.tab)));
+  let saved = null; try { saved = localStorage.getItem('bushido-gate'); } catch {}
+  if (saved && tabs.some((t) => t.dataset.tab === saved)) show(saved);
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.17.0/ethers.umd.min.js"></script>
 <script type="module">
 import * as F from './flow.js';
